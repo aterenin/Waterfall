@@ -15,14 +15,15 @@
   * /
   */
 
-package waterfall
+import waterfall.Waterfall
 
-sealed trait GPUComputation
-case object GPUaxpy extends GPUComputation
-case object GPUdot extends GPUComputation
-case object GPUgeam extends GPUComputation
-case object GPUgemm extends GPUComputation
-case object GPUgemv extends GPUComputation
-case object GPUspotrf extends GPUComputation
-case object GPUspotrs extends GPUComputation
-case object GPUtrsv extends GPUComputation
+object GPUTestSetup {
+  lazy val initialized = {
+    try {
+      Waterfall.init()
+      true
+    } catch {
+      case e: UnsatisfiedLinkError => false
+    }
+  }
+}

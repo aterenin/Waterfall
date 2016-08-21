@@ -48,7 +48,7 @@ object Waterfall {
   private var initialized = false
   def isInitialized = initialized
 
-  def init() = {
+  def init() = if(!initialized) {
     curandCreateGenerator(curandGenerator, CURAND_RNG_PSEUDO_PHILOX4_32_10).checkJCurandStatus()
 
     cublasCreate(cublasHandle).checkJCublasStatus()
@@ -63,5 +63,5 @@ object Waterfall {
     cudaMemcpy(ptrZero, Pointer.to(Array(0.0f)), Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
 
     initialized = true
-  }
+  } else throw new Exception("Waterfall.init() called, but was already previously initialized")
 }

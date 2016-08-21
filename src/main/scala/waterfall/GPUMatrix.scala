@@ -34,37 +34,23 @@ import Implicits.DebugImplicits
   * @param numCols number of columns
   * @param isTranspose whether or not matrix is transpose, default false
   */
-class GPUMatrix(
-                 val ptr: Pointer,
-                 val numRows: Int,
-                 val numCols: Int,
-                 val isTranspose: Boolean = false
-               ) {
-  val numBytes = numRows.toLong * numCols.toLong * Sizeof.FLOAT.toLong
+class GPUMatrix(ptr: Pointer,
+                val numRows: Int,
+                val numCols: Int,
+                val isTranspose: Boolean = false
+               ) extends GPUArray(ptr, numRows.toLong * numCols.toLong) {
   val leadingDimension = if(isTranspose) numCols else numRows
 
   def *(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUgemm)
+  def +(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUgeam)
+  def +=:(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUaxpy).execute()
 
-
-//  def *(that: GPUVector) = new GPUVectorResult(this, that, gemv)
+//  def *(that: GPUVector) = new GPUVectorResult(this, that, GPUgemv)
 
   def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose)
 
+//  def performTranspose = ???
 //  def inv = ???
-
-  def copyTo(that: GPUMatrix) = {
-    cudaMemcpy(that.ptr, ptr, numBytes, cudaMemcpyDeviceToDevice).checkJCudaStatus()
-  }
-
-  def copyToHost: Array[Float] = {
-    val result = Array.ofDim[Float](numRows*numCols)
-    cudaMemcpy(Pointer.to(result), ptr, numBytes, cudaMemcpyDeviceToHost).checkJCudaStatus()
-    result
-  }
-
-  def copyToHostBuffer(b: java.nio.FloatBuffer): Unit = {
-    cudaMemcpy(Pointer.toBuffer(b), ptr, numBytes, cudaMemcpyDeviceToHost).checkJCudaStatus()
-  }
 }
 
 object GPUMatrix {
