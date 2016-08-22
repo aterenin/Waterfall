@@ -16,7 +16,7 @@
   */
 
 import org.scalatest.{Assertions, FlatSpec, Matchers}
-import waterfall.{GPUArray, GPUMatrix, GPUVector}
+import waterfall.{GPUArray, GPUConstant, GPUMatrix, GPUVector}
 
 class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
 
@@ -70,6 +70,12 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
   }
 
   it should "perform a dot product computations" in {
-    cancel()
+    val v = GPUVector.createFromArray(hostV)
+    val w = GPUVector.createFromArray(hostW)
+    val c = GPUConstant.create(0.0f)
+
+    c =: (v dot w)
+
+    testGPUEquality(c, Array(hostV.zip(hostW).map(p => p._1 * p._2).sum))
   }
 }

@@ -29,10 +29,14 @@ import Implicits.DebugImplicits
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUMatrixResult(computation: GPUComputation) {
-  def :=>(C: GPUMatrix): GPUMatrix = execute(C)
-  def =:(C: GPUMatrix): GPUMatrix = execute(C)
-//  def :+=>(C: GPUMatrix) = ???
-//  def +=:(C: GPUMatrix) = execute(C)
+  def :=>(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant)
+  def =:(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant)
+
+  def :+=>(C: GPUMatrix): GPUMatrix = execute(C.withConstant(Waterfall.Constants.one))
+  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.withConstant(Waterfall.Constants.one))
+
+  def :!+=>(C: GPUMatrix): GPUMatrix  = execute(C)
+  def !+=:(C: GPUMatrix): GPUMatrix  = execute(C)
 
 
   private def execute(C: GPUMatrix) = computation match {
@@ -50,13 +54,17 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
     assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
 
+    // determine constants
+    val alpha = A.constant.getOrElse(Waterfall.Constants.one)
+    val beta = B.constant.getOrElse(Waterfall.Constants.one)
+
     // perform single-precision general matrix-matrix addition
     cublasSgeam(Waterfall.cublasHandle,
       A.isTranspose.toTransposeOp, B.isTranspose.toTransposeOp,
       C.numRows, C.numCols,
-      Waterfall.ptrOne,
+      alpha.ptr,
       A.ptr, A.leadingDimension,
-      Waterfall.ptrOne,
+      beta.ptr,
       B.ptr, B.leadingDimension,
       C.ptr, C.leadingDimension
     ).checkJCublasStatus()
@@ -71,15 +79,20 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
     assert(A.numRows == B.numCols, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numCols}")
     assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
+    assert(A.constant.isEmpty || B.constant.isEmpty, s"unsupported: only one input constant can be defined")
+
+    // determine constants
+    val alpha = A.constant.getOrElse(B.constant.getOrElse(Waterfall.Constants.one))
+    val beta = C.constant.getOrElse(Waterfall.Constants.zero)
 
     // perform single-precision general matrix-matrix multiplication
     cublasSgemm(Waterfall.cublasHandle,
       A.isTranspose.toTransposeOp, B.isTranspose.toTransposeOp,
       C.numRows, C.numCols, A.numCols,
-      Waterfall.ptrOne,
+      alpha.ptr,
       A.ptr, A.leadingDimension,
       B.ptr, B.leadingDimension,
-      Waterfall.ptrZero,
+      beta.ptr,
       C.ptr, C.leadingDimension
     ).checkJCublasStatus()
 
@@ -92,11 +105,16 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
     assert(A.numCols == C.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${C.numCols}")
     assert(A.isTranspose == C.isTranspose, s"unsupported: A,B must have same transpose flag for in-place addition")
+    assert(A.size < Int.MaxValue.toLong, s"unsupported: array size bigger than Int.MaxValue")
+    assert(C.constant.isEmpty, s"unsupported: output matrix must not have constant")
+
+    // determine constants
+    val alpha = A.constant.getOrElse(Waterfall.Constants.one)
 
     // perform in-place matrix addition using single-precision alpha x plus y
     cublasSaxpy(Waterfall.cublasHandle,
       A.size.toInt,
-      Waterfall.ptrOne,
+      alpha.ptr,
       A.ptr, 1,
       C.ptr, 1
     ).checkJCublasStatus()

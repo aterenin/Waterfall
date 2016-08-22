@@ -42,8 +42,6 @@ object Waterfall {
   val cublasHandle = new cublasHandle()
   val cusolverHandle = new cusolverDnHandle
 
-  val ptrOne = new Pointer
-  val ptrZero = new Pointer
 
   private var initialized = false
   def isInitialized = initialized
@@ -56,12 +54,12 @@ object Waterfall {
 
     cusolverDnCreate(cusolverHandle).checkJCusolverStatus()
 
-    cudaMalloc(ptrOne, Sizeof.FLOAT).checkJCudaStatus()
-    cudaMemcpy(ptrOne, Pointer.to(Array(1.0f)), Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
-
-    cudaMalloc(ptrZero, Sizeof.FLOAT).checkJCudaStatus()
-    cudaMemcpy(ptrZero, Pointer.to(Array(0.0f)), Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
-
     initialized = true
   } else throw new Exception("Waterfall.init() called, but was already previously initialized")
+
+  object Constants {
+    lazy val one = GPUConstant.create(1.0f)
+    lazy val zero = GPUConstant.create(0.0f)
+    lazy val minusOne = GPUConstant.create(-1.0f)
+  }
 }

@@ -26,7 +26,7 @@ package waterfall
 sealed trait GPUComputation
 case class GPUaxpy(x: GPUVector) extends GPUComputation
 case class GPUmaxpy(A: GPUMatrix) extends GPUComputation
-case object GPUdot extends GPUComputation
+case class GPUdot(x: GPUVector, y: GPUVector) extends GPUComputation
 case class GPUgeam(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
 case class GPUgemm(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
 case class GPUlgemv(x: GPUVector, A: GPUMatrix) extends GPUComputation

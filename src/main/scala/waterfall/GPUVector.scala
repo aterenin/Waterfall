@@ -36,6 +36,7 @@ import Implicits.DebugImplicits
 class GPUVector(ptr: Pointer,
                 val length: Int,
                 val isTranspose: Boolean = false,
+                val constant: Option[GPUConstant] = None,
                 val stride: Int = 1
                ) extends GPUArray(ptr, length.toLong) {
 
@@ -49,7 +50,17 @@ class GPUVector(ptr: Pointer,
     new GPUVectorResult(GPUlgemv(this.T, that.T))
   }
 
-  def T = new GPUVector(ptr, length = length, isTranspose = !isTranspose)
+  // won't have desired order of operations
+  def dot(that: GPUVector) = new GPUConstantResult(GPUdot(this, that))
+  def outer(that: GPUVector) = this.asColumnVector.toGPUMatrix * that.asRowVector.toGPUMatrix
+
+  def T = new GPUVector(ptr,  length, isTranspose = !isTranspose, constant, stride)
+  def asColumnVector = new GPUVector(ptr,  length, isTranspose = false, constant, stride)
+  def asRowVector = new GPUVector(ptr, length, isTranspose = true, constant, stride)
+
+
+  def withConstant(that: GPUConstant) = new GPUVector(ptr, length, isTranspose, constant = Option(that), stride)
+  def withoutConstant = new GPUVector(ptr, length, isTranspose, constant = None, stride)
 
   def toGPUMatrix = new GPUMatrix(ptr, length, 1, isTranspose)
 
