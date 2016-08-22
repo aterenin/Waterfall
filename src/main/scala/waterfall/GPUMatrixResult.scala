@@ -22,31 +22,32 @@ import Implicits.TransposeImplicits
 import Implicits.DebugImplicits
 
 /**
-  * Created by Admin on 8/19/16.
+  * A not-yet-evaluated result of a computation that yields a matrix
+  *
+  * @author Alexander Terenin
+  *
+  * @param computation the computation containing the needed input that will yield selected result
   */
-class GPUMatrixResult(A: GPUMatrix, B: GPUMatrix, computation: GPUComputation) {
+class GPUMatrixResult(computation: GPUComputation) {
   def :=>(C: GPUMatrix): GPUMatrix = execute(C)
   def =:(C: GPUMatrix): GPUMatrix = execute(C)
 //  def :+=>(C: GPUMatrix) = ???
 //  def +=:(C: GPUMatrix) = execute(C)
 
-  def execute(): GPUMatrix = computation match {
-    case GPUaxpy => executeSaxpy()
-    case _ => throw new Exception("wrong matrix operation in execute()")
-  }
 
   private def execute(C: GPUMatrix) = computation match {
-    case GPUgeam => executeSgeam(C: GPUMatrix)
-    case GPUgemm => executeSgemm(C: GPUMatrix)
+    case GPUmaxpy(a) => executeSaxpy(a,C) // somehow, capitals cause an error at compile time - Scala bug?
+    case GPUgeam(a,b) => executeSgeam(a,b,C)
+    case GPUgemm(a,b) => executeSgemm(a,b,C)
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
-  private def executeSgeam(C: GPUMatrix) = {
+  private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
     // check for compatibility
-    assert(A.numRows == B.numRows, s"mismatched matrix dimensions in *: got ${A.numRows} != ${B.numRows}")
-    assert(B.numRows == C.numRows, s"mismatched matrix dimensions in *: got ${B.numRows} != ${C.numRows}")
-    assert(A.numCols == B.numCols, s"mismatched matrix dimensions in *: got ${A.numCols} != ${B.numCols}")
-    assert(B.numCols == C.numCols, s"mismatched matrix dimensions in *: got ${B.numCols} != ${C.numCols}")
+    assert(A.numRows == B.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numRows}")
+    assert(B.numRows == C.numRows, s"mismatched matrix dimensions: got ${B.numRows} != ${C.numRows}")
+    assert(A.numCols == B.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${B.numCols}")
+    assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
     assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
 
     // perform single-precision general matrix-matrix addition
@@ -64,11 +65,11 @@ class GPUMatrixResult(A: GPUMatrix, B: GPUMatrix, computation: GPUComputation) {
     C
   }
 
-  private def executeSgemm(C: GPUMatrix) = {
+  private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
     // check for compatibility
-    assert(A.numRows == C.numRows, s"mismatched matrix dimensions in *: got ${A.numRows} != ${C.numRows}")
-    assert(B.numCols == C.numCols, s"mismatched matrix dimensions in *: got ${B.numCols} != ${C.numCols}")
-    assert(A.numRows == B.numCols, s"mismatched matrix dimensions in *: got ${A.numRows} != ${B.numCols}")
+    assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
+    assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
+    assert(A.numRows == B.numCols, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numCols}")
     assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
 
     // perform single-precision general matrix-matrix multiplication
@@ -86,21 +87,21 @@ class GPUMatrixResult(A: GPUMatrix, B: GPUMatrix, computation: GPUComputation) {
     C
   }
 
-  private def executeSaxpy(): GPUMatrix = {
+  private def executeSaxpy(A: GPUMatrix, C: GPUMatrix) = {
     // check for compatibility
-    assert(A.numRows == B.numRows, s"mismatched matrix dimensions in *: got ${A.numRows} != ${B.numRows}")
-    assert(A.numCols == B.numCols, s"mismatched matrix dimensions in *: got ${A.numCols} != ${B.numCols}")
-    assert(A.isTranspose == B.isTranspose, s"unsupported: A,B must have same transpose flag for in-place addition")
+    assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
+    assert(A.numCols == C.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${C.numCols}")
+    assert(A.isTranspose == C.isTranspose, s"unsupported: A,B must have same transpose flag for in-place addition")
 
     // perform in-place matrix addition using single-precision alpha x plus y
     cublasSaxpy(Waterfall.cublasHandle,
-      A.length.toInt,
+      A.size.toInt,
       Waterfall.ptrOne,
       A.ptr, 1,
-      B.ptr, 1
+      C.ptr, 1
     ).checkJCublasStatus()
 
     // return result
-    B
+    C
   }
 }

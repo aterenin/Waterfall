@@ -17,12 +17,20 @@
 
 package waterfall
 
+
+/**
+  * A container value that holds a computation together with its input, which is never mutated
+  *
+  * @author Alexander Terenin
+  */
 sealed trait GPUComputation
-case object GPUaxpy extends GPUComputation
+case class GPUaxpy(x: GPUVector) extends GPUComputation
+case class GPUmaxpy(A: GPUMatrix) extends GPUComputation
 case object GPUdot extends GPUComputation
-case object GPUgeam extends GPUComputation
-case object GPUgemm extends GPUComputation
-case object GPUgemv extends GPUComputation
+case class GPUgeam(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
+case class GPUgemm(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
+case class GPUlgemv(x: GPUVector, A: GPUMatrix) extends GPUComputation
+case class GPUgemv(A: GPUMatrix, x: GPUVector) extends GPUComputation
 case object GPUspotrf extends GPUComputation
 case object GPUspotrs extends GPUComputation
 case object GPUtrsv extends GPUComputation

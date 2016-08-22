@@ -41,9 +41,13 @@ class GPUMatrix(ptr: Pointer,
                ) extends GPUArray(ptr, numRows.toLong * numCols.toLong) {
   val leadingDimension = if(isTranspose) numCols else numRows
 
-  def *(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUgemm)
-  def +(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUgeam)
-  def +=:(that: GPUMatrix) = new GPUMatrixResult(this, that, GPUaxpy).execute()
+  def *(that: GPUMatrix) = new GPUMatrixResult(GPUgemm(this, that))
+  def +(that: GPUMatrix) = new GPUMatrixResult(GPUgeam(this, that))
+
+  def *(that: GPUVector) = new GPUVectorResult(GPUgemv(this, that))
+
+  // due to Scala operator order reversal for operators with : in them, that needs to be mutated, and this doesn't
+  def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUmaxpy(this)) :=> that
 
 //  def *(that: GPUVector) = new GPUVectorResult(this, that, GPUgemv)
 
