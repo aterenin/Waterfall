@@ -22,7 +22,7 @@ import Implicits.TransposeImplicits
 import Implicits.DebugImplicits
 
 /**
-  * A not-yet-evaluated result of a computation that yields a vector
+  * A not-yet-evaluated result of a computation that yields a constant
   *
   * @author Alexander Terenin
   *

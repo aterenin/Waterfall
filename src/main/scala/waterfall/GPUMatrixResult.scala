@@ -35,8 +35,8 @@ class GPUMatrixResult(computation: GPUComputation) {
   def :+=>(C: GPUMatrix): GPUMatrix = execute(C.withConstant(Waterfall.Constants.one))
   def +=:(C: GPUMatrix): GPUMatrix  = execute(C.withConstant(Waterfall.Constants.one))
 
-  def :!+=>(C: GPUMatrix): GPUMatrix  = execute(C)
-  def !+=:(C: GPUMatrix): GPUMatrix  = execute(C)
+  def :++=>(C: GPUMatrix): GPUMatrix  = execute(C)
+  def ++=:(C: GPUMatrix): GPUMatrix  = execute(C)
 
 
   private def execute(C: GPUMatrix) = computation match {

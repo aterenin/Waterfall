@@ -35,8 +35,8 @@ class GPUVectorResult(computation: GPUComputation) {
   def :+=>(y: GPUVector): GPUVector = execute(y.withConstant(Waterfall.Constants.one))
   def +=:(y: GPUVector): GPUVector  = execute(y.withConstant(Waterfall.Constants.one))
 
-  def :!+=>(y: GPUVector): GPUVector  = execute(y)
-  def !+=:(y: GPUVector): GPUVector  = execute(y)
+  def :++=>(y: GPUVector): GPUVector  = execute(y)
+  def ++=:(y: GPUVector): GPUVector  = execute(y)
 
   private def execute(y: GPUVector) = computation match {
     case GPUaxpy(x: GPUVector) => executeSaxpy(x, y)
