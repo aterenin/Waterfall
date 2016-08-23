@@ -47,6 +47,7 @@ class GPUMatrix(ptr: Pointer,
   def +(that: GPUMatrix) = new GPUMatrixResult(GPUgeam(this, that))
 
   def *(that: GPUVector) = new GPUVectorResult(GPUgemv(this, that))
+  def *(that: GPUMatrix with Symmetric) = new GPUMatrixResult(GPUlsymm(this, that))
 
   // due to Scala operator order reversal for operators with : in them, that needs to be mutated, and this doesn't
   def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUmaxpy(this)) :=> that
@@ -55,6 +56,9 @@ class GPUMatrix(ptr: Pointer,
 
   def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that))
   def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None)
+
+  def declareSymmetric = new GPUMatrix(ptr, numRows, numCols, isTranspose = false, constant) with Symmetric
+  def declareSymmetric(lower: Boolean = false) = new GPUMatrix(ptr, numRows, numCols, isTranspose = lower, constant) with Symmetric
 
 //  def performTranspose = ???
 //  def inv = ???

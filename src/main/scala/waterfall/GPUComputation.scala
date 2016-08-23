@@ -17,6 +17,8 @@
 
 package waterfall
 
+import waterfall.matrices.{Symmetric, Triangular}
+
 
 /**
   * A container value that holds a computation together with its input, which is never mutated
@@ -33,4 +35,11 @@ case class GPUlgemv(x: GPUVector, A: GPUMatrix) extends GPUComputation
 case class GPUgemv(A: GPUMatrix, x: GPUVector) extends GPUComputation
 case object GPUspotrf extends GPUComputation
 case object GPUspotrs extends GPUComputation
+case class GPUsymm(A: GPUMatrix with Symmetric, B: GPUMatrix) extends GPUComputation
+case class GPUlsymm(B: GPUMatrix, A: GPUMatrix with Symmetric) extends GPUComputation
+case class GPUsymv(A: GPUMatrix with Symmetric, x: GPUVector) extends GPUComputation
+case class GPUlsymv(x: GPUVector, A: GPUMatrix with Symmetric) extends GPUComputation
+case class GPUtrmm(A: GPUMatrix with Triangular, B: GPUMatrix) extends GPUComputation
+case class GPUltrmm(B: GPUMatrix, A: GPUMatrix with Triangular) extends GPUComputation
+case class GPUtrmv(A: GPUMatrix with Triangular, x: GPUVector) extends GPUComputation
 case object GPUtrsv extends GPUComputation

@@ -27,21 +27,21 @@ import Implicits.DebugImplicits
   *
   * @author Alexander Terenin
   * @param ptr JCuda pointer to the GPU's array
-  * @param size length of array
+  * @param numElements length of array
   */
 class GPUArray(val ptr: Pointer,
-               val size: Long
+               val numElements: Long
               ) {
-  val numBytes = size * Sizeof.FLOAT.toLong
+  val numBytes = numElements * Sizeof.FLOAT.toLong
 
   def copyTo(that: GPUArray) = {
-    assert(this.size == that.size, "tried to copy into array of non-matching length")
+    assert(this.numElements == that.numElements, "tried to copy into array of non-matching length")
     cudaMemcpy(that.ptr, ptr, numBytes, cudaMemcpyDeviceToDevice).checkJCudaStatus()
   }
 
   def copyToHost: Array[Float] = {
-    assert(size < Int.MaxValue, "array too big to store on host, length > Int.MaxValue")
-    val result = Array.ofDim[Float](size.toInt)
+    assert(numElements < Int.MaxValue, "array too big to store on host, length > Int.MaxValue")
+    val result = Array.ofDim[Float](numElements.toInt)
     cudaMemcpy(Pointer.to(result), ptr, numBytes, cudaMemcpyDeviceToHost).checkJCudaStatus()
     result
   }

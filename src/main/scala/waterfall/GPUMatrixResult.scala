@@ -18,8 +18,9 @@
 package waterfall
 
 import jcuda.jcublas.JCublas2._
-import Implicits.TransposeImplicits
-import Implicits.DebugImplicits
+import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits, SideImplicits}
+import waterfall.matrices.MatrixProperties.{Left, Right}
+import waterfall.matrices.Symmetric
 
 /**
   * A not-yet-evaluated result of a computation that yields a matrix
@@ -38,11 +39,21 @@ class GPUMatrixResult(computation: GPUComputation) {
   def :++=>(C: GPUMatrix): GPUMatrix  = execute(C)
   def ++=:(C: GPUMatrix): GPUMatrix  = execute(C)
 
+  private implicit class Checks(M: GPUMatrix) {
+    def checkNoTranspose = {
+      assert(!M.isTranspose, s"unsupported: output matrix cannot already be transposed")
+      M
+    }
+  }
 
   private def execute(C: GPUMatrix) = computation match {
     case GPUmaxpy(a) => executeSaxpy(a,C) // somehow, capitals cause an error at compile time - Scala bug?
     case GPUgeam(a,b) => executeSgeam(a,b,C)
     case GPUgemm(a,b) => executeSgemm(a,b,C)
+    case GPUsymm(a,b) if !b.isTranspose => executeSsymm(a,b,C.checkNoTranspose)
+    case GPUsymm(a,b) if b.isTranspose => executeSsymm(b.T,a,C.checkNoTranspose.T)
+    case GPUlsymm(b,a) if !b.isTranspose => executeSsymm(b,a,C.checkNoTranspose)
+    case GPUlsymm(b,a) if b.isTranspose => executeSsymm(a,b.T,C.checkNoTranspose.T)
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
@@ -60,7 +71,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
     // perform single-precision general matrix-matrix addition
     cublasSgeam(Waterfall.cublasHandle,
-      A.isTranspose.toTransposeOp, B.isTranspose.toTransposeOp,
+      A.isTranspose.toTransposeOpId, B.isTranspose.toTransposeOpId,
       C.numRows, C.numCols,
       alpha.ptr,
       A.ptr, A.leadingDimension,
@@ -87,7 +98,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
     // perform single-precision general matrix-matrix multiplication
     cublasSgemm(Waterfall.cublasHandle,
-      A.isTranspose.toTransposeOp, B.isTranspose.toTransposeOp,
+      A.isTranspose.toTransposeOpId, B.isTranspose.toTransposeOpId,
       C.numRows, C.numCols, A.numCols,
       alpha.ptr,
       A.ptr, A.leadingDimension,
@@ -105,7 +116,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
     assert(A.numCols == C.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${C.numCols}")
     assert(A.isTranspose == C.isTranspose, s"unsupported: A,B must have same transpose flag for in-place addition")
-    assert(A.size < Int.MaxValue.toLong, s"unsupported: array size bigger than Int.MaxValue")
+    assert(A.numElements < Int.MaxValue.toLong, s"unsupported: array size bigger than Int.MaxValue")
     assert(C.constant.isEmpty, s"unsupported: output matrix must not have constant")
 
     // determine constants
@@ -113,10 +124,45 @@ class GPUMatrixResult(computation: GPUComputation) {
 
     // perform in-place matrix addition using single-precision alpha x plus y
     cublasSaxpy(Waterfall.cublasHandle,
-      A.size.toInt,
+      A.numElements.toInt,
       alpha.ptr,
       A.ptr, 1,
       C.ptr, 1
+    ).checkJCublasStatus()
+
+    // return result
+    C
+  }
+
+  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix) = {
+    //determine parameters and check for compatibility
+    val (a, b, side) = (M,N) match {
+      case (b: GPUMatrix, a: GPUMatrix with Symmetric) =>
+        assert(a.size == b.numRows, s"mismatched matrix dimensions: got ${a.size} != ${b.numRows}")
+        assert(a.size == C.numRows, s"mismatched matrix dimensions: got ${a.numRows} != ${C.numRows}")
+        assert(b.numCols == C.numCols, s"mismatched matrix dimensions: got ${b.numCols} != ${C.numCols}")
+        (a, b, Right)
+      case (a: GPUMatrix with Symmetric, b: GPUMatrix) =>
+        assert(b.numCols == a.size, s"mismatched matrix dimensions: got ${b.numCols} != ${a.size}")
+        assert(a.size == C.numCols, s"mismatched matrix dimensions: got ${a.size} != ${C.numCols}")
+        assert(b.numRows == C.numRows, s"mismatched matrix dimensions: got ${b.numRows} != ${C.numRows}")
+        (a, b, Left)
+    }
+    assert(a.constant.isEmpty || b.constant.isEmpty, s"unsupported: only one input constant can be defined")
+
+    // determine constants
+    val alpha = a.constant.getOrElse(b.constant.getOrElse(Waterfall.Constants.one))
+    val beta = C.constant.getOrElse(Waterfall.Constants.zero)
+
+    // perform single-precision general matrix-matrix multiplication
+    cublasSsymm(Waterfall.cublasHandle,
+      side.toSideId, a.fillMode.toFillModeId,
+      C.numRows, C.numCols,
+      alpha.ptr,
+      a.ptr, a.leadingDimension,
+      b.ptr, b.leadingDimension,
+      beta.ptr,
+      C.ptr, C.leadingDimension
     ).checkJCublasStatus()
 
     // return result

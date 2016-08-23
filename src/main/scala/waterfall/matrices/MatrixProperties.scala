@@ -17,17 +17,12 @@
 
 package waterfall.matrices
 
-import waterfall._
-import waterfall.matrices.MatrixProperties.{Upper, Lower}
+object MatrixProperties {
+  sealed trait FillMode
+  case object Upper extends FillMode
+  case object Lower extends FillMode
 
-trait Symmetric extends GPUMatrix {
-  assert(numRows == numCols, "mismatched matrix dimensions: tried to create a non-square symmetric matrix")
-  val fillMode = super.isTranspose match {case true => Lower; case false => Upper}
-  val size = numRows
-  override val isTranspose = false
-  override def T = this
-  override def *(that: GPUMatrix) = new GPUMatrixResult(GPUsymm(this, that))
-  override def *(that: GPUMatrix with Symmetric) = *(that.asInstanceOf[GPUMatrix])
-  override def *(that: GPUVector) = new GPUVectorResult(GPUsymv(this, that))
+  sealed trait Side
+  case object Left extends Side
+  case object Right extends Side
 }
-

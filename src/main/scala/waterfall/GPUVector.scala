@@ -23,6 +23,7 @@ import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
 import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
+import waterfall.matrices.Symmetric
 
 /**
   * A GPU matrix
@@ -45,9 +46,13 @@ class GPUVector(ptr: Pointer,
   def +=:(that: GPUVector) = new GPUVectorResult(GPUaxpy(this)) :=> that
 
   def *(that: GPUMatrix) = {
-    // Ax=y is equivalent to y^T = x^T A^T
     assert(isTranspose, s"mismatched vector dimensions: must be column vectors")
-    new GPUVectorResult(GPUlgemv(this.T, that.T))
+    new GPUVectorResult(GPUlgemv(this, that))
+  }
+  def *(that: GPUMatrix with Symmetric) = {
+    // Ax=y is equivalent to y^T = x^T A since A = A^T
+    assert(isTranspose, s"mismatched vector dimensions: must be column vectors")
+    new GPUVectorResult(GPUlsymv(this.T, that))
   }
 
   // won't have desired order of operations
