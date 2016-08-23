@@ -17,6 +17,8 @@
 
 package waterfall.matrices
 
+import waterfall.GPUMatrix
+
 object MatrixProperties {
   sealed trait FillMode
   case object Upper extends FillMode
@@ -25,4 +27,8 @@ object MatrixProperties {
   sealed trait Side
   case object Left extends Side
   case object Right extends Side
+
+  sealed trait Decomposition
+  case object NoDecomposition extends Decomposition
+  case class CholeskyDecomposition(R: GPUMatrix with Triangular) extends Decomposition
 }

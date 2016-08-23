@@ -18,7 +18,8 @@
 package waterfall.matrices
 
 import waterfall._
-import waterfall.matrices.MatrixProperties.{Upper, Lower}
+import waterfall.matrices.Cholesky.CholeskyWorkspace
+import waterfall.matrices.MatrixProperties.{Lower, Upper}
 
 trait Symmetric extends GPUMatrix {
   assert(numRows == numCols, "mismatched matrix dimensions: tried to create a non-square symmetric matrix")
@@ -29,5 +30,7 @@ trait Symmetric extends GPUMatrix {
   override def *(that: GPUMatrix) = new GPUMatrixResult(GPUsymm(this, that))
   override def *(that: GPUMatrix with Symmetric) = *(that.asInstanceOf[GPUMatrix])
   override def *(that: GPUVector) = new GPUVectorResult(GPUsymv(this, that))
+  def computeCholesky(workspace: CholeskyWorkspace) = ???
+  def computeInPlaceCholesky(workspace: CholeskyWorkspace) = ???
 }
 

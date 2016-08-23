@@ -17,7 +17,7 @@
 
 package waterfall
 
-import jcuda.runtime.JCuda._
+import jcuda.runtime.JCuda.cudaMemcpy
 import jcuda.runtime.cudaMemcpyKind._
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits

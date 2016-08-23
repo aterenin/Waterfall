@@ -23,6 +23,7 @@ import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
 import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
+import waterfall.matrices.MatrixProperties.{Decomposition, NoDecomposition}
 import waterfall.matrices.Symmetric
 
 /**
@@ -39,7 +40,8 @@ class GPUMatrix(ptr: Pointer,
                 val numRows: Int,
                 val numCols: Int,
                 val isTranspose: Boolean = false,
-                val constant: Option[GPUConstant] = None
+                val constant: Option[GPUConstant] = None,
+                private[waterfall] val decomposition: Decomposition = NoDecomposition
                ) extends GPUArray(ptr, numRows.toLong * numCols.toLong) {
   val leadingDimension = if(isTranspose) numCols else numRows
 
@@ -52,16 +54,13 @@ class GPUMatrix(ptr: Pointer,
   // due to Scala operator order reversal for operators with : in them, that needs to be mutated, and this doesn't
   def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUmaxpy(this)) :=> that
 
-  def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant)
+  def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant, decomposition)
 
-  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that))
-  def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None)
+  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that), decomposition)
+  def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None, decomposition)
 
-  def declareSymmetric = new GPUMatrix(ptr, numRows, numCols, isTranspose = false, constant) with Symmetric
-  def declareSymmetric(lower: Boolean = false) = new GPUMatrix(ptr, numRows, numCols, isTranspose = lower, constant) with Symmetric
-
-//  def performTranspose = ???
-//  def inv = ???
+  def declareSymmetric = new GPUMatrix(ptr, numRows, numCols, isTranspose = false, constant, decomposition) with Symmetric
+  def declareSymmetric(lower: Boolean = false) = new GPUMatrix(ptr, numRows, numCols, isTranspose = lower, constant, decomposition) with Symmetric
 }
 
 object GPUMatrix {
