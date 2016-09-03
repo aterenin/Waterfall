@@ -19,8 +19,7 @@ package waterfall
 
 import jcuda.jcublas.JCublas2._
 import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits, SideImplicits}
-import waterfall.matrices.MatrixProperties.{Left, Right}
-import waterfall.matrices.Symmetric
+import MatrixProperties.{Left, Right}
 
 /**
   * A not-yet-evaluated result of a computation that yields a matrix
@@ -47,13 +46,13 @@ class GPUMatrixResult(computation: GPUComputation) {
   }
 
   private def execute(C: GPUMatrix) = computation match {
-    case GPUmaxpy(a) => executeSaxpy(a,C) // somehow, capitals cause an error at compile time - Scala bug?
-    case GPUgeam(a,b) => executeSgeam(a,b,C)
-    case GPUgemm(a,b) => executeSgemm(a,b,C)
-    case GPUsymm(a,b) if !b.isTranspose => executeSsymm(a,b,C.checkNoTranspose)
-    case GPUsymm(a,b) if b.isTranspose => executeSsymm(b.T,a,C.checkNoTranspose.T)
-    case GPUlsymm(b,a) if !b.isTranspose => executeSsymm(b,a,C.checkNoTranspose)
-    case GPUlsymm(b,a) if b.isTranspose => executeSsymm(a,b.T,C.checkNoTranspose.T)
+    case GPUMatrixAlphaXPlusY(a) => executeSaxpy(a,C) // somehow, capitals cause an error at compile time - Scala bug?
+    case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
+    case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
+    case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C.checkNoTranspose)
+    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.checkNoTranspose.T)
+    case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C.checkNoTranspose)
+    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.checkNoTranspose.T)
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
@@ -137,12 +136,12 @@ class GPUMatrixResult(computation: GPUComputation) {
   private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix) = {
     //determine parameters and check for compatibility
     val (a, b, side) = (M,N) match {
-      case (b: GPUMatrix, a: GPUMatrix with Symmetric) =>
+      case (b: GPUMatrix, a: GPUSymmetricMatrix) =>
         assert(a.size == b.numRows, s"mismatched matrix dimensions: got ${a.size} != ${b.numRows}")
         assert(a.size == C.numRows, s"mismatched matrix dimensions: got ${a.numRows} != ${C.numRows}")
         assert(b.numCols == C.numCols, s"mismatched matrix dimensions: got ${b.numCols} != ${C.numCols}")
         (a, b, Right)
-      case (a: GPUMatrix with Symmetric, b: GPUMatrix) =>
+      case (a: GPUSymmetricMatrix, b: GPUMatrix) =>
         assert(b.numCols == a.size, s"mismatched matrix dimensions: got ${b.numCols} != ${a.size}")
         assert(a.size == C.numCols, s"mismatched matrix dimensions: got ${a.size} != ${C.numCols}")
         assert(b.numRows == C.numRows, s"mismatched matrix dimensions: got ${b.numRows} != ${C.numRows}")

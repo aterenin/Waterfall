@@ -15,10 +15,14 @@
   * /
   */
 
-package waterfall.matrices
+package waterfall
 
-import waterfall.{GPUMatrix, GPUMatrixResult, GPUgemm}
+object MatrixProperties {
+  sealed trait FillMode
+  case object Upper extends FillMode
+  case object Lower extends FillMode
 
-trait Triangular extends GPUMatrix {
-
+  sealed trait Side
+  case object Left extends Side
+  case object Right extends Side
 }

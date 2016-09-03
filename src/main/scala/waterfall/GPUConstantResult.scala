@@ -33,7 +33,7 @@ class GPUConstantResult(computation: GPUComputation) {
   def =:(c: GPUConstant): GPUConstant = execute(c)
 
   private def execute(c: GPUConstant) = computation match {
-    case GPUdot(x: GPUVector, y: GPUVector) => executeSdot(x, y, c)
+    case GPUDot(x: GPUVector, y: GPUVector) => executeSdot(x, y, c)
     case _ => throw new Exception("wrong constant operation in execute()")
   }
 

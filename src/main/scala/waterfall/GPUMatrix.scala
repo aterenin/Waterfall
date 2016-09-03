@@ -23,8 +23,7 @@ import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
 import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
-import waterfall.matrices.MatrixProperties.{Decomposition, NoDecomposition}
-import waterfall.matrices.Symmetric
+import MatrixProperties.{FillMode, Lower}
 
 /**
   * A GPU matrix
@@ -40,27 +39,30 @@ class GPUMatrix(ptr: Pointer,
                 val numRows: Int,
                 val numCols: Int,
                 val isTranspose: Boolean = false,
-                val constant: Option[GPUConstant] = None,
-                private[waterfall] val decomposition: Decomposition = NoDecomposition
+                val constant: Option[GPUConstant] = None
                ) extends GPUArray(ptr, numRows.toLong * numCols.toLong) {
   val leadingDimension = if(isTranspose) numCols else numRows
 
-  def *(that: GPUMatrix) = new GPUMatrixResult(GPUgemm(this, that))
-  def +(that: GPUMatrix) = new GPUMatrixResult(GPUgeam(this, that))
+  def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))
+  def +(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralAddMatrix(this, that))
 
-  def *(that: GPUVector) = new GPUVectorResult(GPUgemv(this, that))
-  def *(that: GPUMatrix with Symmetric) = new GPUMatrixResult(GPUlsymm(this, that))
+  def *(that: GPUVector) = new GPUVectorResult(GPUGeneralMatrixVector(this, that))
+  def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPULeftSymmetricMatrixMatrix(this, that))
+  def *(that: GPUTriangularMatrix) = new GPUMatrixResult(GPULeftTriangularMatrixMatrix(this, that))
 
-  // due to Scala operator order reversal for operators with : in them, that needs to be mutated, and this doesn't
-  def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUmaxpy(this)) :=> that
+  // switch order of arguments due to Scala operator order reversal for operators with : in them
+  def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUMatrixAlphaXPlusY(this)) :=> that
 
-  def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant, decomposition)
+  def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant)
 
-  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that), decomposition)
-  def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None, decomposition)
+  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that))
+  def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None)
 
-  def declareSymmetric = new GPUMatrix(ptr, numRows, numCols, isTranspose = false, constant, decomposition) with Symmetric
-  def declareSymmetric(lower: Boolean = false) = new GPUMatrix(ptr, numRows, numCols, isTranspose = lower, constant, decomposition) with Symmetric
+  def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, Lower, constant)
+  def declareSymmetric(fillMode: FillMode) = new GPUSymmetricMatrix(ptr, numCols, fillMode, constant)
+
+  def declareTriangular = new GPUTriangularMatrix(ptr, numRows, Lower, isTranspose, constant)
+  def declareTriangular(fillMode: FillMode) = new GPUTriangularMatrix(ptr, numCols, fillMode, isTranspose, constant)
 }
 
 object GPUMatrix {

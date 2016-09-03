@@ -15,23 +15,21 @@
   * /
   */
 
-package waterfall.matrices
+package waterfall
 
-import jcuda.{Pointer, Sizeof}
 import jcuda.jcusolver.JCusolverDn.cusolverDnSpotrf_bufferSize
 import jcuda.runtime.JCuda.cudaMalloc
-import waterfall.{GPUMatrix, Waterfall}
-import waterfall.Implicits.FillModeImplicits
-import waterfall.matrices.MatrixProperties.CholeskyDecomposition
+import jcuda.{Pointer, Sizeof}
+import Implicits.FillModeImplicits
 
-trait Cholesky extends GPUMatrix with Symmetric {
+trait Cholesky extends GPUSymmetricMatrix {
   def inv = ???
-  def chol = decomposition match { case CholeskyDecomposition(r) => r }
+  def chol = ???
 }
 
 object Cholesky {
   case class CholeskyWorkspace(workspace: Pointer, devInfo: Pointer)
-  def createWorkspace(A: GPUMatrix with Symmetric) = {
+  def createWorkspace(A: GPUSymmetricMatrix) = {
     // calculate buffer size
     val workspaceSize = Array.ofDim[Int](1)
     cusolverDnSpotrf_bufferSize(Waterfall.cusolverHandle,

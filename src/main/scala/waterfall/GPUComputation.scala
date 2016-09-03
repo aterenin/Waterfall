@@ -17,8 +17,6 @@
 
 package waterfall
 
-import waterfall.matrices.{Symmetric, Triangular}
-
 
 /**
   * A container value that holds a computation together with its input, which is never mutated
@@ -26,20 +24,32 @@ import waterfall.matrices.{Symmetric, Triangular}
   * @author Alexander Terenin
   */
 sealed trait GPUComputation
-case class GPUaxpy(x: GPUVector) extends GPUComputation
-case class GPUmaxpy(A: GPUMatrix) extends GPUComputation
-case class GPUdot(x: GPUVector, y: GPUVector) extends GPUComputation
-case class GPUgeam(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
-case class GPUgemm(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
-case class GPUlgemv(x: GPUVector, A: GPUMatrix) extends GPUComputation
-case class GPUgemv(A: GPUMatrix, x: GPUVector) extends GPUComputation
-case object GPUspotrf extends GPUComputation
-case object GPUspotrs extends GPUComputation
-case class GPUsymm(A: GPUMatrix with Symmetric, B: GPUMatrix) extends GPUComputation
-case class GPUlsymm(B: GPUMatrix, A: GPUMatrix with Symmetric) extends GPUComputation
-case class GPUsymv(A: GPUMatrix with Symmetric, x: GPUVector) extends GPUComputation
-case class GPUlsymv(x: GPUVector, A: GPUMatrix with Symmetric) extends GPUComputation
-case class GPUtrmm(A: GPUMatrix with Triangular, B: GPUMatrix) extends GPUComputation
-case class GPUltrmm(B: GPUMatrix, A: GPUMatrix with Triangular) extends GPUComputation
-case class GPUtrmv(A: GPUMatrix with Triangular, x: GPUVector) extends GPUComputation
-case object GPUtrsv extends GPUComputation
+
+case class GPUAlphaXPlusY(x: GPUVector) extends GPUComputation
+case class GPUMatrixAlphaXPlusY(A: GPUMatrix) extends GPUComputation
+
+case class GPUDot(x: GPUVector, y: GPUVector) extends GPUComputation
+
+case class GPUGeneralAddMatrix(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
+
+case class GPUGeneralMatrixMatrix(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
+
+case class GPULeftGeneralMatrixVector(x: GPUVector, A: GPUMatrix) extends GPUComputation
+case class GPUGeneralMatrixVector(A: GPUMatrix, x: GPUVector) extends GPUComputation
+
+case object GPUPositiveDefiniteTriangularFactorize extends GPUComputation
+case object GPUPositiveDefiniteTriangularSolve extends GPUComputation
+
+case class GPUSymmetricMatrixMatrix(A: GPUSymmetricMatrix, B: GPUMatrix) extends GPUComputation
+case class GPULeftSymmetricMatrixMatrix(B: GPUMatrix, A: GPUSymmetricMatrix) extends GPUComputation
+
+case class GPUSymmetricMatrixVector(A: GPUSymmetricMatrix, x: GPUVector) extends GPUComputation
+case class GPULeftSymmetricMatrixVector(x: GPUVector, A: GPUSymmetricMatrix) extends GPUComputation
+
+case class GPUTriangularMatrixMatrix(A: GPUTriangularMatrix, B: GPUMatrix) extends GPUComputation
+case class GPULeftTriangularMatrixMatrix(B: GPUMatrix, A: GPUTriangularMatrix) extends GPUComputation
+
+case class GPUTriangularMatrixVector(A: GPUTriangularMatrix, x: GPUVector) extends GPUComputation
+case class GPULeftTriangularMatrixVector(x: GPUVector, A: GPUTriangularMatrix) extends GPUComputation
+
+case object GPUTriangularSolve extends GPUComputation

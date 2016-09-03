@@ -15,21 +15,26 @@
   * /
   */
 
-package waterfall.matrices
+package waterfall
 
-import waterfall._
-import waterfall.matrices.Cholesky.CholeskyWorkspace
-import waterfall.matrices.MatrixProperties.{Lower, Upper}
+import jcuda.Pointer
+import Cholesky.CholeskyWorkspace
+import MatrixProperties.FillMode
 
-trait Symmetric extends GPUMatrix {
-  assert(numRows == numCols, "mismatched matrix dimensions: tried to create a non-square symmetric matrix")
-  val fillMode = super.isTranspose match {case true => Lower; case false => Upper}
-  val size = numRows
+class GPUSymmetricMatrix(ptr: Pointer,
+                         val size: Int,
+                         val fillMode: FillMode,
+                         constant: Option[GPUConstant] = None
+                        ) extends GPUMatrix(ptr, numRows=size, numCols=size, isTranspose=false, constant) {
   override val isTranspose = false
   override def T = this
-  override def *(that: GPUMatrix) = new GPUMatrixResult(GPUsymm(this, that))
-  override def *(that: GPUMatrix with Symmetric) = *(that.asInstanceOf[GPUMatrix])
-  override def *(that: GPUVector) = new GPUVectorResult(GPUsymv(this, that))
+
+  override def *(that: GPUMatrix) = new GPUMatrixResult(GPUSymmetricMatrixMatrix(this, that))
+  override def *(that: GPUVector) = new GPUVectorResult(GPUSymmetricMatrixVector(this, that))
+
+  override def withConstant(that: GPUConstant) = super.withConstant(that).declareSymmetric(fillMode)
+  override def withoutConstant = super.withoutConstant.declareSymmetric(fillMode)
+
   def computeCholesky(workspace: CholeskyWorkspace) = ???
   def computeInPlaceCholesky(workspace: CholeskyWorkspace) = ???
 }
