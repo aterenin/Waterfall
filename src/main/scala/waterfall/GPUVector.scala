@@ -40,9 +40,7 @@ class GPUVector(ptr: Pointer,
                 val stride: Int = 1
                ) extends GPUArray(ptr, length.toLong) {
 
-
-  // due to Scala operator order reversal for operators with : in them, that needs to be mutated, and this doesn't
-  def +=:(that: GPUVector) = new GPUVectorResult(GPUAlphaXPlusY(this)) :=> that
+  def +(that: GPUVector) = new GPUVectorResult(GPUAlphaXPlusY(this, that))
 
   def *(that: GPUMatrix) = {
     assert(isTranspose, s"mismatched vector dimensions: must be row vector")
@@ -69,12 +67,9 @@ class GPUVector(ptr: Pointer,
 
 
   def withConstant(that: GPUConstant) = new GPUVector(ptr, length, isTranspose, constant = Option(that), stride)
-  def withoutConstant = new GPUVector(ptr, length, isTranspose, constant = None, stride)
+  def withoutConstant = if(constant.nonEmpty) new GPUVector(ptr, length, isTranspose, constant = None, stride) else this
 
   def toGPUMatrix = new GPUMatrix(ptr, length, 1, isTranspose)
-
-  //  def performTranspose = ???
-  //  def inv = ???
 }
 
 object GPUVector {

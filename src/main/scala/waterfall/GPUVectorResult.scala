@@ -31,14 +31,15 @@ class GPUVectorResult(computation: GPUComputation) {
   def :=>(y: GPUVector): GPUVector = execute(y.withoutConstant)
   def =:(y: GPUVector): GPUVector = execute(y.withoutConstant)
 
-  def :+=>(y: GPUVector): GPUVector = execute(y.withConstant(Waterfall.Constants.one))
-  def +=:(y: GPUVector): GPUVector  = execute(y.withConstant(Waterfall.Constants.one))
+  def :+=>(y: GPUVector): GPUVector  = execute(y.withInPlaceAdditionConstant)
+  def +=:(y: GPUVector): GPUVector  = execute(y.withInPlaceAdditionConstant)
 
-  def :++=>(y: GPUVector): GPUVector  = execute(y)
-  def ++=:(y: GPUVector): GPUVector  = execute(y)
+  private implicit class ResultImplicits(v: GPUVector) {
+    def withInPlaceAdditionConstant = if(v.constant.nonEmpty) v else v.withConstant(Waterfall.Constants.one)
+  }
 
   private def execute(y: GPUVector) = computation match {
-    case GPUAlphaXPlusY(x: GPUVector) => executeSaxpy(x, y)
+    case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
     case GPULeftGeneralMatrixVector(x: GPUVector, a: GPUMatrix) => executeSgemv(a.T, x.T, y.T)  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
@@ -46,11 +47,27 @@ class GPUVectorResult(computation: GPUComputation) {
     case _ => throw new Exception("wrong vector operation in execute()")
   }
 
-  private def executeSaxpy(x: GPUVector, y: GPUVector) = {
+  private def executeSaxpy(x1: GPUVector, x2: GPUVector, y: GPUVector) = {
     // check for compatibility
-    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
-    assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: tried to add row vector to column vector")
-    assert(y.constant.isEmpty, s"unsupported: output vector must not have constant")
+    assert(x1.length == x2.length && x1.length == y.length, s"mismatched vector dimensions: got ${x1.length} != ${x2.length} != ${y.length}")
+    assert(x1.isTranspose == x2.isTranspose && x1.isTranspose == y.isTranspose, s"mismatched vector dimensions: tried to add row vector to column vector")
+    assert(x1.constant.isEmpty || x2.constant.isEmpty, s"unsupported: both vectors being added cannot have constant")
+    assert(y.constant.isEmpty, s"unsupported: in-place addition supported only through =: for vectors")
+
+    // determine which vector to copy, if any
+    val x = if(x1.ptr eq y.ptr) { // operation: y = alpha x_2 + y
+      x2
+    } else if(x2.ptr eq y.ptr) { // operation: y = alpha x_1 + y
+      x1
+    } else {
+      if(x1.constant.nonEmpty) { // operation: y = alpha x_1 + x_2, so copy x_2 to y
+        x2.copyTo(y)
+        x1
+      } else { // operation: y = alpha x_2 + x_1, so copy x_1 to y
+        x1.copyTo(y)
+        x2
+      }
+    }
 
     // determine constants
     val alpha = x.constant.getOrElse(Waterfall.Constants.one)
@@ -94,32 +111,6 @@ class GPUVectorResult(computation: GPUComputation) {
   }
 
   private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector) = {
-    // check for compatibility
-    assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
-    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
-    assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: incorrect row/column vector")
-    assert(A.constant.isEmpty || x.constant.isEmpty, s"unsupported: only one input constant can be defined")
-
-    // determine constants
-    val alpha = A.constant.getOrElse(x.constant.getOrElse(Waterfall.Constants.one))
-    val beta = y.constant.getOrElse(Waterfall.Constants.zero)
-
-    // perform single-precision general matrix-vector multiplication
-    cublasSsymv(Waterfall.cublasHandle,
-      A.fillMode.toFillModeId,
-      A.size,
-      alpha.ptr,
-      A.ptr, A.leadingDimension,
-      x.ptr, x.stride,
-      beta.ptr,
-      y.ptr, y.stride
-    ).checkJCublasStatus()
-
-    // return result
-    y
-  }
-
-  private def executeStrmv(A: GPUTriangularMatrix, x: GPUVector) = {
     // check for compatibility
     assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
     assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")

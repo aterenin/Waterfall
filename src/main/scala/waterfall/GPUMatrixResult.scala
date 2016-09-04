@@ -29,30 +29,24 @@ import MatrixProperties.{Left, Right}
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUMatrixResult(computation: GPUComputation) {
-  def :=>(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant)
-  def =:(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant)
+  def :=>(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant.withoutTranspose)
+  def =:(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant.withoutTranspose)
 
-  def :+=>(C: GPUMatrix): GPUMatrix = execute(C.withConstant(Waterfall.Constants.one))
-  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.withConstant(Waterfall.Constants.one))
+  def :+=>(C: GPUMatrix): GPUMatrix  = execute(C.withInPlaceAdditionConstant.withoutTranspose)
+  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.withInPlaceAdditionConstant.withoutTranspose)
 
-  def :++=>(C: GPUMatrix): GPUMatrix  = execute(C)
-  def ++=:(C: GPUMatrix): GPUMatrix  = execute(C)
-
-  private implicit class Checks(M: GPUMatrix) {
-    def checkNoTranspose = {
-      assert(!M.isTranspose, s"unsupported: output matrix cannot already be transposed")
-      M
-    }
+  private implicit class ResultImplicits(M: GPUMatrix) {
+    def withoutTranspose = if(M.isTranspose) M.T else M
+    def withInPlaceAdditionConstant = if(M.constant.nonEmpty) M else M.withConstant(Waterfall.Constants.one)
   }
 
   private def execute(C: GPUMatrix) = computation match {
-    case GPUMatrixAlphaXPlusY(a) => executeSaxpy(a,C) // somehow, capitals cause an error at compile time - Scala bug?
     case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
     case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
-    case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C.checkNoTranspose)
-    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.checkNoTranspose.T)
-    case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C.checkNoTranspose)
-    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.checkNoTranspose.T)
+    case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C)
+    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.T)
+    case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C)
+    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.T)
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
@@ -62,7 +56,10 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(B.numRows == C.numRows, s"mismatched matrix dimensions: got ${B.numRows} != ${C.numRows}")
     assert(A.numCols == B.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${B.numCols}")
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
-    assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
+    assert(!((A.ptr eq C.ptr) && (B.ptr eq C.ptr)), s"unsupported: cannot in-place add matrix to itself")
+    assert(if(A.ptr eq C.ptr) !A.isTranspose else true, s"unsupported: cannot perform in-place transpose")
+    assert(if(B.ptr eq C.ptr) !B.isTranspose else true, s"unsupported: cannot perform in-place transpose")
+    assert(C.constant.isEmpty, s"unsupported: in-place addition supported only through =: for matrices")
 
     // determine constants
     val alpha = A.constant.getOrElse(Waterfall.Constants.one)
@@ -88,7 +85,6 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
     assert(A.numRows == B.numCols, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numCols}")
-    assert(!C.isTranspose, s"unsupported: output matrix cannot be transposed, transpose input matrices instead")
     assert(A.constant.isEmpty || B.constant.isEmpty, s"unsupported: only one input constant can be defined")
 
     // determine constants
@@ -107,30 +103,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C
-  }
-
-  private def executeSaxpy(A: GPUMatrix, C: GPUMatrix) = {
-    // check for compatibility
-    assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
-    assert(A.numCols == C.numCols, s"mismatched matrix dimensions: got ${A.numCols} != ${C.numCols}")
-    assert(A.isTranspose == C.isTranspose, s"unsupported: A,B must have same transpose flag for in-place addition")
-    assert(A.numElements < Int.MaxValue.toLong, s"unsupported: array size bigger than Int.MaxValue")
-    assert(C.constant.isEmpty, s"unsupported: output matrix must not have constant")
-
-    // determine constants
-    val alpha = A.constant.getOrElse(Waterfall.Constants.one)
-
-    // perform in-place matrix addition using single-precision alpha x plus y
-    cublasSaxpy(Waterfall.cublasHandle,
-      A.numElements.toInt,
-      alpha.ptr,
-      A.ptr, 1,
-      C.ptr, 1
-    ).checkJCublasStatus()
-
-    // return result
-    C
+    C.withoutConstant
   }
 
   private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix) = {
@@ -165,6 +138,6 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C
+    C.withoutConstant
   }
 }

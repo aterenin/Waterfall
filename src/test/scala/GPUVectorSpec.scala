@@ -63,7 +63,7 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
 
     v.copyTo(twoV)
 
-    twoV +=: v
+    twoV =: v + twoV
 
     testGPUEquality(twoV, hostV.map(_ * 2.0f))
     testGPUEquality(v, hostV)

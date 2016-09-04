@@ -50,18 +50,15 @@ class GPUMatrix(ptr: Pointer,
   def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPULeftSymmetricMatrixMatrix(this, that))
   def *(that: GPUTriangularMatrix) = new GPUMatrixResult(GPULeftTriangularMatrixMatrix(this, that))
 
-  // switch order of arguments due to Scala operator order reversal for operators with : in them
-  def +=:(that: GPUMatrix) = new GPUMatrixResult(GPUMatrixAlphaXPlusY(this)) :=> that
-
   def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant)
 
   def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that))
-  def withoutConstant = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None)
+  def withoutConstant = if(constant.nonEmpty) new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None) else this
 
-  def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, Lower, constant)
+  def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, fillMode = Lower, constant)
   def declareSymmetric(fillMode: FillMode) = new GPUSymmetricMatrix(ptr, numCols, fillMode, constant)
 
-  def declareTriangular = new GPUTriangularMatrix(ptr, numRows, Lower, isTranspose, constant)
+  def declareTriangular = new GPUTriangularMatrix(ptr, numRows, fillMode = Lower, isTranspose, constant)
   def declareTriangular(fillMode: FillMode) = new GPUTriangularMatrix(ptr, numCols, fillMode, isTranspose, constant)
 }
 

@@ -76,7 +76,7 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
     val twoX = GPUMatrix.create(hostXnumRows, hostXnumCols)
     X.copyTo(twoX)
 
-    twoX +=: X
+    twoX =: X + twoX
 
     testGPUEquality(twoX, hostX.flatten.map(_ * 2.0f))
     testGPUEquality(X, hostX.flatten)

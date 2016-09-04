@@ -25,8 +25,7 @@ package waterfall
   */
 sealed trait GPUComputation
 
-case class GPUAlphaXPlusY(x: GPUVector) extends GPUComputation
-case class GPUMatrixAlphaXPlusY(A: GPUMatrix) extends GPUComputation
+case class GPUAlphaXPlusY(v1: GPUVector, v2: GPUVector) extends GPUComputation
 
 case class GPUDot(x: GPUVector, y: GPUVector) extends GPUComputation
 
