@@ -18,8 +18,7 @@
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 import waterfall.{GPUArray, GPUMatrix, GPUVector}
 
-class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
-
+class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   val hostX =  Array(
     Array(-1.3005037f, 0.2967214f, -2.2460886f, 0.5507635f, -0.2778561f),
     Array( 0.7178072f, 0.3204358f, -0.4091498f, 0.1456138f, -0.1742799f),
@@ -27,6 +26,12 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   ).transpose // transpose to change to column major format
   val hostXnumRows = hostX.head.length
   val hostXnumCols = hostX.length
+
+  val hostXXtX = Array(
+    Array(-13.164660f,  4.34380343f, -16.9357003f,  5.6770347f, -2.69327581f),
+    Array(  1.042531f, -0.05679918f,  -0.6914778f, -0.0666368f, -0.08547064f),
+    Array( -8.019992f,  2.79532536f,  -6.9409501f,  3.1687155f, -1.35705768f)
+  ).transpose // transpose to change to column major format
 
   val hostXtX = Array(
     Array(4.0657250f, -1.1639237f, 2.9419211f, -1.4027582f, 0.5449043f),
@@ -37,7 +42,7 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   ) // no need to transpose because symmetric
 
   val hostV = Array(0.6998572f, -1.0195756f, 1.0799649f, -0.6968716f, 0.4279191f)
-  val hostXv = Array(-4.1411050f, -0.4422652f, -2.4583282f)
+  val hostXtXv = hostXtX.map(x => x.zip(hostV).map(p => p._1*p._2).sum)
 
   def testGPUEquality(A: GPUArray, B: Array[Float]) = {
     A.copyToHost.zip(B).foreach{
@@ -51,46 +56,27 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
 
-  "GPUMatrix" should "perform matrix-matrix multiplication" in {
+  "GPUSymmetricMatrix" should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
-    val XtX = GPUMatrix.create(hostXtX.length, hostXtX.length)
+    val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX)
+    val XXtX = GPUMatrix.create(hostXnumRows, hostXnumCols)
 
-    XtX =: X.T * X
+    XXtX =: XtX * X
 
+    testGPUEquality(XXtX, hostXXtX.flatten)
     testGPUEquality(XtX, hostXtX.flatten)
     testGPUEquality(X, hostX.flatten)
   }
 
-  it should "perform out-of-place matrix-matrix addition" in {
-    val X = GPUMatrix.createFromColumnMajorArray(hostX)
-    val twoX = GPUMatrix.create(hostXnumRows, hostXnumCols)
-
-    twoX =: X + X
-
-    testGPUEquality(twoX, hostX.flatten.map(_ * 2.0f))
-    testGPUEquality(X, hostX.flatten)
-  }
-
-  it should "perform in-place matrix-matrix addition" in {
-    val X = GPUMatrix.createFromColumnMajorArray(hostX)
-    val twoX = GPUMatrix.create(hostXnumRows, hostXnumCols)
-    X.copyTo(twoX)
-
-    twoX =: X + twoX
-
-    testGPUEquality(twoX, hostX.flatten.map(_ * 2.0f))
-    testGPUEquality(X, hostX.flatten)
-  }
-
   it should "perform matrix-vector multiplication" in {
-    val X = GPUMatrix.createFromColumnMajorArray(hostX)
+    val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val v = GPUVector.createFromArray(hostV)
-    val Xv = GPUVector.create(v.length)
+    val XtXv = GPUVector.create(v.length)
 
-    Xv =: X * v
+    XtXv =: XtX * v
 
-    testGPUEquality(Xv, hostXv)
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(XtXv, hostXtXv)
+    testGPUEquality(XtX, hostXtX.flatten)
     testGPUEquality(v, hostV)
   }
 

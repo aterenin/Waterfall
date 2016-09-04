@@ -17,7 +17,7 @@
 
 import waterfall.Waterfall
 
-object GPUSetup {
+object GPUInitCheck {
   lazy val initialized = {
     try {
       Waterfall.init()

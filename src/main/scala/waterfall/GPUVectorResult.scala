@@ -41,7 +41,7 @@ class GPUVectorResult(computation: GPUComputation) {
   private def execute(y: GPUVector) = computation match {
     case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
-    case GPULeftGeneralMatrixVector(x: GPUVector, a: GPUMatrix) => executeSgemv(a.T, x.T, y.T)  // Ax=y is equivalent to y^T = x^T A^T
+    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y.T)  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
     case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.T) // see lgemv, and note A^T = A
     case _ => throw new Exception("wrong vector operation in execute()")

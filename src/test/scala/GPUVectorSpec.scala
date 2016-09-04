@@ -40,7 +40,7 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
   }
 
   override def withFixture(test: NoArgTest) = {
-    assume(GPUSetup.initialized)
+    assume(GPUInitCheck.initialized)
     test()
   }
 

@@ -33,7 +33,7 @@ case class GPUGeneralAddMatrix(A: GPUMatrix, B: GPUMatrix) extends GPUComputatio
 
 case class GPUGeneralMatrixMatrix(A: GPUMatrix, B: GPUMatrix) extends GPUComputation
 
-case class GPULeftGeneralMatrixVector(x: GPUVector, A: GPUMatrix) extends GPUComputation
+case class GPULeftGeneralMatrixVector(xT: GPUVector, A: GPUMatrix) extends GPUComputation
 case class GPUGeneralMatrixVector(A: GPUMatrix, x: GPUVector) extends GPUComputation
 
 case object GPUPositiveDefiniteTriangularFactorize extends GPUComputation
