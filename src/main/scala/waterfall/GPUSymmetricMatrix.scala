@@ -39,6 +39,8 @@ class GPUSymmetricMatrix(ptr: Pointer,
   def chol = iCholesky.getOrElse(throw new Exception(s"tried to get Cholesky decomposition, but none attached"))
   def inv = ???
 
+  def hasCholesky = iCholesky.nonEmpty
+
   def computeCholesky(workspace: CholeskyWorkspace) = {
     assert(constant.isEmpty, s"unsupported: cannot compute Cholesky for matrix with attached constant")
     new GPUMatrixResult(GPUPositiveDefiniteTriangularFactorize(this, workspace))

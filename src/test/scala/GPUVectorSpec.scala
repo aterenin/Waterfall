@@ -19,28 +19,10 @@ import org.scalatest.{Assertions, FlatSpec, Matchers}
 import waterfall.{GPUArray, GPUConstant, GPUMatrix, GPUVector}
 
 class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
-
-  val hostX =  Array(
-    Array(-1.3005037f, 0.2967214f, -2.2460886f, 0.5507635f, -0.2778561f),
-    Array( 0.7178072f, 0.3204358f, -0.4091498f, 0.1456138f, -0.1742799f),
-    Array(-1.3635131f, 0.7393017f, -0.2307020f, 0.5801271f, -0.2263644f)
-  ).transpose // transpose to change to column major format
-
-  val hostV = Array(0.6998572f, -1.0195756f, 1.0799649f, -0.6968716f, 0.4279191f)
-
-  val hostW = Array(0.83497682f, 0.85264958f, -1.77764342f, -0.09401397f, 0.15499778f)
-
-  val hostvtXt = Array(-4.1411050f, -0.4422652f, -2.4583282f)
-
-
-  def testGPUEquality(A: GPUArray, B: Array[Float]) = {
-    A.copyToHost.zip(B).foreach{
-      case (l, c) => l shouldEqual (c +- 0.0001f)
-    }
-  }
+  import GPUTestInit._
 
   override def withFixture(test: NoArgTest) = {
-    assume(GPUInitCheck.initialized)
+    assume(initialized)
     test()
   }
 
@@ -71,11 +53,10 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
 
   it should "perform a dot product computations" in {
     val v = GPUVector.createFromArray(hostV)
-    val w = GPUVector.createFromArray(hostW)
     val c = GPUConstant.create(0.0f)
 
-    c =: (v dot w)
+    c =: (v dot v)
 
-    testGPUEquality(c, Array(hostV.zip(hostW).map(p => p._1 * p._2).sum))
+    testGPUEquality(c, Array(hostV.zip(hostV).map(p => p._1 * p._2).sum))
   }
 }

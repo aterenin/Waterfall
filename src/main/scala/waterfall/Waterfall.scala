@@ -40,7 +40,7 @@ import Implicits.DebugImplicits
 object Waterfall {
   val curandGenerator = new curandGenerator()
   val cublasHandle = new cublasHandle()
-  val cusolverHandle = new cusolverDnHandle
+  val cusolverDnHandle = new cusolverDnHandle
 
 
   private var initialized = false
@@ -52,7 +52,7 @@ object Waterfall {
     cublasCreate(cublasHandle).checkJCublasStatus()
     cublasSetPointerMode(cublasHandle, CUBLAS_POINTER_MODE_DEVICE).checkJCublasStatus()
 
-    cusolverDnCreate(cusolverHandle).checkJCusolverStatus()
+    cusolverDnCreate(cusolverDnHandle).checkJCusolverStatus()
 
     initialized = true
   } else throw new Exception("Waterfall.init() called, but was already previously initialized")

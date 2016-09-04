@@ -18,8 +18,9 @@
 package waterfall
 
 import jcuda.jcublas.JCublas2._
-import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits, SideImplicits}
-import MatrixProperties.{Left, Right}
+import jcuda.jcusolver.JCusolverDn.{cusolverDnSpotrf}
+import Implicits.{DebugImplicits, FillModeImplicits, SideImplicits, TransposeImplicits}
+import MatrixProperties.{CholeskyWorkspace, Left, Right}
 
 /**
   * A not-yet-evaluated result of a computation that yields a matrix
@@ -40,9 +41,10 @@ class GPUMatrixResult(computation: GPUComputation) {
     case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
     case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
     case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C)
-    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.mutateTranspose(true))
+    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C, transeposeC = true)
     case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C)
-    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.mutateTranspose(true))
+    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C, transeposeC = true)
+    case GPUPositiveDefiniteTriangularFactorize(a,ws) => executeSpotrf(a,C,ws)
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
@@ -102,7 +104,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None)
   }
 
-  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix) = {
+  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, transeposeC: Boolean = false) = {
     //determine parameters and check for compatibility
     val (a, b, side) = (M,N) match {
       case (b: GPUMatrix, a: GPUSymmetricMatrix) =>
@@ -134,6 +136,39 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C.mutateConstant(None)
+    C.mutateConstant(None).mutateTranspose(transeposeC)
+  }
+
+  private def executeSpotrf(A: GPUSymmetricMatrix, uncheckedC: GPUMatrix, ws: CholeskyWorkspace) = {
+    // check if output has been declared
+    assert(uncheckedC.isInstanceOf[GPUTriangularMatrix], s"unsupported: output of Cholesky factorization needs to be declared triangular")
+    val C = uncheckedC.asInstanceOf[GPUTriangularMatrix]
+
+    // check for compatibility
+    assert(A.size == C.size, s"mismatched matrix dimensions: got ${A.size} != ${C.size}")
+    assert(A.constant.isEmpty && C.constant.isEmpty, s"unsupported: cannot compute Cholesky with attached constants")
+    assert(A.fillMode eq C.fillMode, s"unsupported: Cholesky input and output must have same fill mode")
+
+    // if not in-place, copy to output, and attach Cholesky decomposition to original matrix
+    if(!(A.ptr eq C.ptr)) {
+      A.copyTo(C)
+      A.attachCholesky(C, ws)
+    }
+
+    // perform positive definite triangular factorization
+    cusolverDnSpotrf(Waterfall.cusolverDnHandle,
+      C.fillMode.toFillModeId,
+      C.size,
+      C.ptr, C.leadingDimension,
+      ws.workspace,
+      ws.workspaceSize,
+      ws.devInfo
+    ).checkJCusolverStatus()
+
+    // TODO: check devInfo to ensure non-singularity - need to be careful here when using CUDA streams
+
+
+    // return result
+    C
   }
 }

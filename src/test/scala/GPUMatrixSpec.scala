@@ -19,34 +19,10 @@ import org.scalatest.{Assertions, FlatSpec, Matchers}
 import waterfall.{GPUArray, GPUMatrix, GPUVector}
 
 class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
-
-  val hostX =  Array(
-    Array(-1.3005037f, 0.2967214f, -2.2460886f, 0.5507635f, -0.2778561f),
-    Array( 0.7178072f, 0.3204358f, -0.4091498f, 0.1456138f, -0.1742799f),
-    Array(-1.3635131f, 0.7393017f, -0.2307020f, 0.5801271f, -0.2263644f)
-  ).transpose // transpose to change to column major format
-  val hostXnumRows = hostX.head.length
-  val hostXnumCols = hostX.length
-
-  val hostXtX = Array(
-    Array(4.0657250f, -1.1639237f, 2.9419211f, -1.4027582f, 0.5449043f),
-    Array(-1.1639237f, 0.7372897f, -0.9681272f, 0.6389721f, -0.3056430f),
-    Array(2.9419211f, -0.9681272f, 5.2655410f, -1.4304780f, 0.7476187f),
-    Array(-1.4027582f, 0.6389721f, -1.4304780f, 0.6610913f, -0.3097307f),
-    Array(0.5449043f, -0.3056430f, 0.7476187f, -0.3097307f, 0.1588183f)
-  ) // no need to transpose because symmetric
-
-  val hostV = Array(0.6998572f, -1.0195756f, 1.0799649f, -0.6968716f, 0.4279191f)
-  val hostXv = Array(-4.1411050f, -0.4422652f, -2.4583282f)
-
-  def testGPUEquality(A: GPUArray, B: Array[Float]) = {
-    A.copyToHost.zip(B).foreach{
-      case (l, c) => l shouldEqual (c +- 0.0001f)
-    }
-  }
+  import GPUTestInit._
 
   override def withFixture(test: NoArgTest) = {
-    assume(GPUInitCheck.initialized)
+    assume(initialized)
     test()
   }
 
