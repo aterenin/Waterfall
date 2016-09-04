@@ -28,22 +28,19 @@ import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits}
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUVectorResult(computation: GPUComputation) {
-  def :=>(y: GPUVector): GPUVector = execute(y.withoutConstant)
-  def =:(y: GPUVector): GPUVector = execute(y.withoutConstant)
-
-  def :+=>(y: GPUVector): GPUVector  = execute(y.withInPlaceAdditionConstant)
-  def +=:(y: GPUVector): GPUVector  = execute(y.withInPlaceAdditionConstant)
+  def =:(y: GPUVector): GPUVector = execute(y.mutateConstant(None).mutateTranspose(false))
+  def +=:(y: GPUVector): GPUVector  = execute(y.setInPlaceAdditionConstant().mutateTranspose(false))
 
   private implicit class ResultImplicits(v: GPUVector) {
-    def withInPlaceAdditionConstant = if(v.constant.nonEmpty) v else v.withConstant(Waterfall.Constants.one)
+    def setInPlaceAdditionConstant() = if(v.constant.nonEmpty) v else v.mutateConstant(Some(Waterfall.Constants.one))
   }
 
   private def execute(y: GPUVector) = computation match {
     case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
-    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y.T)  // Ax=y is equivalent to y^T = x^T A^T
+    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y.mutateTranspose(true))  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
-    case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.T) // see lgemv, and note A^T = A
+    case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.mutateTranspose(true)) // see lgemv, and note A^T = A
     case _ => throw new Exception("wrong vector operation in execute()")
   }
 
@@ -81,7 +78,7 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y
+    y.mutateConstant(None)
   }
 
   private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector) = {
@@ -107,7 +104,7 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y
+    y.mutateConstant(None)
   }
 
   private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector) = {
@@ -133,6 +130,6 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y
+    y.mutateConstant(None)
   }
 }

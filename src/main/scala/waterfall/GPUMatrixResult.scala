@@ -29,24 +29,20 @@ import MatrixProperties.{Left, Right}
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUMatrixResult(computation: GPUComputation) {
-  def :=>(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant.withoutTranspose)
-  def =:(C: GPUMatrix): GPUMatrix = execute(C.withoutConstant.withoutTranspose)
-
-  def :+=>(C: GPUMatrix): GPUMatrix  = execute(C.withInPlaceAdditionConstant.withoutTranspose)
-  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.withInPlaceAdditionConstant.withoutTranspose)
+  def =:(C: GPUMatrix): GPUMatrix = execute(C.mutateConstant(None).mutateTranspose(false))
+  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.setInPlaceAdditionConstant().mutateTranspose(false))
 
   private implicit class ResultImplicits(M: GPUMatrix) {
-    def withoutTranspose = if(M.isTranspose) M.T else M
-    def withInPlaceAdditionConstant = if(M.constant.nonEmpty) M else M.withConstant(Waterfall.Constants.one)
+    def setInPlaceAdditionConstant() = if(M.constant.nonEmpty) M else M.mutateConstant(Some(Waterfall.Constants.one))
   }
 
   private def execute(C: GPUMatrix) = computation match {
     case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
     case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
     case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C)
-    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.T)
+    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C.mutateTranspose(true))
     case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C)
-    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.T)
+    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C.mutateTranspose(true))
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 
@@ -77,14 +73,14 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C
+    C.mutateConstant(None)
   }
 
   private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
     // check for compatibility
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
-    assert(A.numRows == B.numCols, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numCols}")
+    assert(A.numCols == B.numRows, s"mismatched matrix dimensions: got ${A.numCols} != ${B.numRows}")
     assert(A.constant.isEmpty || B.constant.isEmpty, s"unsupported: only one input constant can be defined")
 
     // determine constants
@@ -103,7 +99,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C.withoutConstant
+    C.mutateConstant(None)
   }
 
   private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix) = {
@@ -111,7 +107,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     val (a, b, side) = (M,N) match {
       case (b: GPUMatrix, a: GPUSymmetricMatrix) =>
         assert(a.size == b.numRows, s"mismatched matrix dimensions: got ${a.size} != ${b.numRows}")
-        assert(a.size == C.numRows, s"mismatched matrix dimensions: got ${a.numRows} != ${C.numRows}")
+        assert(a.size == C.numRows, s"mismatched matrix dimensions: got ${a.size} != ${C.numRows}")
         assert(b.numCols == C.numCols, s"mismatched matrix dimensions: got ${b.numCols} != ${C.numCols}")
         (a, b, Right)
       case (a: GPUSymmetricMatrix, b: GPUMatrix) =>
@@ -138,6 +134,6 @@ class GPUMatrixResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    C.withoutConstant
+    C.mutateConstant(None)
   }
 }

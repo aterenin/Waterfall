@@ -25,7 +25,7 @@ class GPUTriangularMatrix(ptr: Pointer,
                           val fillMode: FillMode,
                           isTranspose: Boolean = false,
                           constant: Option[GPUConstant] = None
-                         ) extends GPUMatrix(ptr, numRows=size, numCols=size, isTranspose=isTranspose, constant) {
+                         ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=isTranspose, constant) {
   override def T = super.T.declareTriangular(fillMode)
 
   override def *(that: GPUMatrix) = new GPUMatrixResult(GPUTriangularMatrixMatrix(this, that))

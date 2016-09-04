@@ -31,17 +31,25 @@ import MatrixProperties.{FillMode, Lower}
   * @author Alexander Terenin
   *
   * @param ptr JCuda pointer to the GPU's array
-  * @param numRows number of rows
-  * @param numCols number of columns
-  * @param isTranspose whether or not matrix is transpose, default false
+  * @param iNumRows number of rows (internally mutable)
+  * @param iNumCols number of columns (internally mutable)
+  * @param iIsTranspose whether or not matrix is transpose, default false (internally mutable)
+  * @param iConstant the optional constant this matrix is multiplied by, default none (internally mutable)
   */
 class GPUMatrix(ptr: Pointer,
-                val numRows: Int,
-                val numCols: Int,
-                val isTranspose: Boolean = false,
-                val constant: Option[GPUConstant] = None
-               ) extends GPUArray(ptr, numRows.toLong * numCols.toLong) {
-  val leadingDimension = if(isTranspose) numCols else numRows
+                private var iNumRows: Int,
+                private var iNumCols: Int,
+                private var iIsTranspose: Boolean = false,
+                private var iConstant: Option[GPUConstant] = None
+               ) extends GPUArray(ptr, iNumRows.toLong * iNumCols.toLong) {
+  def numRows = iNumRows
+  def numCols = iNumCols
+  def isTranspose = iIsTranspose
+  def constant = iConstant
+  def leadingDimension = if(isTranspose) numCols else numRows
+
+  private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { if(constant.nonEmpty || newConstant.nonEmpty) { iConstant = newConstant }; this }
+  private[waterfall] def mutateTranspose(newTranspose: Boolean) = { if(newTranspose != isTranspose) { iIsTranspose = newTranspose; iNumRows = numCols; iNumCols = numRows }; this }
 
   def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))
   def +(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralAddMatrix(this, that))
@@ -50,10 +58,10 @@ class GPUMatrix(ptr: Pointer,
   def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPULeftSymmetricMatrixMatrix(this, that))
   def *(that: GPUTriangularMatrix) = new GPUMatrixResult(GPULeftTriangularMatrixMatrix(this, that))
 
-  def T = new GPUMatrix(ptr, numRows = numCols, numCols = numRows, isTranspose = !isTranspose, constant)
+  def T = new GPUMatrix(ptr, iNumRows = numCols, iNumCols = numRows, iIsTranspose = !isTranspose, constant)
 
-  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = Option(that))
-  def withoutConstant = if(constant.nonEmpty) new GPUMatrix(ptr, numRows, numCols, isTranspose, constant = None) else this
+  def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = Option(that))
+  def withoutConstant = if(constant.nonEmpty) new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = None) else this
 
   def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, fillMode = Lower, constant)
   def declareSymmetric(fillMode: FillMode) = new GPUSymmetricMatrix(ptr, numCols, fillMode, constant)

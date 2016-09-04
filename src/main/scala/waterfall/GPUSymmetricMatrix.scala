@@ -25,9 +25,10 @@ class GPUSymmetricMatrix(ptr: Pointer,
                          val size: Int,
                          val fillMode: FillMode,
                          constant: Option[GPUConstant] = None
-                        ) extends GPUMatrix(ptr, numRows=size, numCols=size, isTranspose=false, constant) {
+                        ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=false, constant) {
+  override def mutateTranspose(newTranspose: Boolean) = this
   override val isTranspose = false
-  override def T = this
+  override val T = this
 
   override def *(that: GPUMatrix) = new GPUMatrixResult(GPUSymmetricMatrixMatrix(this, that))
   override def *(that: GPUVector) = new GPUVectorResult(GPUSymmetricMatrixVector(this, that))
@@ -36,6 +37,5 @@ class GPUSymmetricMatrix(ptr: Pointer,
   override def withoutConstant = super.withoutConstant.declareSymmetric(fillMode)
 
   def computeCholesky(workspace: CholeskyWorkspace) = ???
-  def computeInPlaceCholesky(workspace: CholeskyWorkspace) = ???
 }
 
