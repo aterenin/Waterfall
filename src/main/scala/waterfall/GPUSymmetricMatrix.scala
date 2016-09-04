@@ -18,24 +18,31 @@
 package waterfall
 
 import jcuda.Pointer
-import Cholesky.CholeskyWorkspace
-import MatrixProperties.FillMode
+import MatrixProperties.{CholeskyWorkspace, FillMode}
 
 class GPUSymmetricMatrix(ptr: Pointer,
                          val size: Int,
                          val fillMode: FillMode,
-                         constant: Option[GPUConstant] = None
-                        ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=false, constant) {
+                         const: Option[GPUConstant] = None,
+                         private var iCholesky: Option[GPUTriangularMatrix] = None
+                        ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=false, const) {
   override def mutateTranspose(newTranspose: Boolean) = this
   override val isTranspose = false
   override val T = this
 
-  override def *(that: GPUMatrix) = new GPUMatrixResult(GPUSymmetricMatrixMatrix(this, that))
-  override def *(that: GPUVector) = new GPUVectorResult(GPUSymmetricMatrixVector(this, that))
-
   override def withConstant(that: GPUConstant) = super.withConstant(that).declareSymmetric(fillMode)
   override def withoutConstant = super.withoutConstant.declareSymmetric(fillMode)
 
-  def computeCholesky(workspace: CholeskyWorkspace) = ???
+  override def *(that: GPUMatrix) = new GPUMatrixResult(GPUSymmetricMatrixMatrix(this, that))
+  override def *(that: GPUVector) = new GPUVectorResult(GPUSymmetricMatrixVector(this, that))
+
+  def chol = iCholesky.getOrElse(throw new Exception(s"tried to get Cholesky decomposition, but none attached"))
+  def inv = ???
+
+  def computeCholesky(workspace: CholeskyWorkspace) = {
+    assert(constant.isEmpty, s"unsupported: cannot compute Cholesky for matrix with attached constant")
+    new GPUMatrixResult(GPUPositiveDefiniteTriangularFactorize(this, workspace))
+  }
+  def attachCholesky(chol: GPUTriangularMatrix, workspace: CholeskyWorkspace) = { iCholesky = Some(chol); this }
 }
 

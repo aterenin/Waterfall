@@ -17,6 +17,11 @@
 
 package waterfall
 
+import jcuda.jcusolver.JCusolverDn.cusolverDnSpotrf_bufferSize
+import jcuda.runtime.JCuda.cudaMalloc
+import jcuda.{Pointer, Sizeof}
+import Implicits.FillModeImplicits
+
 object MatrixProperties {
   sealed trait FillMode
   case object Upper extends FillMode
@@ -25,4 +30,22 @@ object MatrixProperties {
   sealed trait Side
   case object Left extends Side
   case object Right extends Side
+
+  case class CholeskyWorkspace(workspace: Pointer, devInfo: Pointer)
+  def createWorkspace(A: GPUSymmetricMatrix) = {
+    // calculate buffer size
+    val workspaceSize = Array.ofDim[Int](1)
+    cusolverDnSpotrf_bufferSize(Waterfall.cusolverHandle,
+      A.fillMode.toFillModeId, A.size, A.ptr, A.leadingDimension,
+      workspaceSize)
+
+    // allocate workspace
+    val workspace = new Pointer
+    cudaMalloc(workspace, workspaceSize.head)
+    val devInfo = new Pointer
+    cudaMalloc(devInfo, Sizeof.INT)
+
+    // return container with necessary pointers
+    CholeskyWorkspace(workspace, devInfo)
+  }
 }
