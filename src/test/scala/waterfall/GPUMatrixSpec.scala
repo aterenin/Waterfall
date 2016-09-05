@@ -20,22 +20,19 @@ package waterfall
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 
 class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
-  import GPUTestInit._
+  import GPUTestUtils._
 
-  override def withFixture(test: NoArgTest) = {
-    assume(initialized)
-    test()
-  }
+  override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
 
-  "GPUMatrix" should "perform matrix-matrix multiplication" in {
+  it should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XtX = GPUMatrix.create(hostXtX.length, hostXtX.length)
 
     XtX =: X.T * X
 
-    testGPUEquality(XtX, hostXtX.flatten)
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(XtX, hostXtX)
+    testGPUEquality(X, hostX)
   }
 
   it should "perform out-of-place matrix-matrix addition" in {
@@ -44,8 +41,8 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
 
     twoX =: X + X
 
-    testGPUEquality(twoX, hostX.flatten.map(_ * 2.0f))
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(twoX, hostX.map(_.map(_*2.0f)))
+    testGPUEquality(X, hostX)
   }
 
   it should "perform in-place matrix-matrix addition" in {
@@ -55,27 +52,22 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
 
     twoX =: X + twoX
 
-    testGPUEquality(twoX, hostX.flatten.map(_ * 2.0f))
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(twoX, hostX.map(_.map(_*2.0f)))
+    testGPUEquality(X, hostX)
   }
 
   it should "perform matrix-vector multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val v = GPUVector.createFromArray(hostV)
     val Xv = GPUVector.create(v.length)
+    val vtXt = GPUVector.create(v.length)
 
     Xv =: X * v
+    vtXt =: v.T * X.T
 
     testGPUEquality(Xv, hostXv)
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(vtXt, hostvtXt)
+    testGPUEquality(X, hostX)
     testGPUEquality(v, hostV)
-  }
-
-  it should "perform a Cholesky decomposition" in {
-    cancel()
-  }
-
-  it should "solve a linear system using provided Cholesky decomposition" in {
-    cancel()
   }
 }

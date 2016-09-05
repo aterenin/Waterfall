@@ -21,15 +21,12 @@ import org.scalatest.{Assertions, FlatSpec, Matchers}
 import waterfall.MatrixProperties.createCholeskyWorkspace
 
 class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
-  import GPUTestInit._
+  import GPUTestUtils._
 
-  override def withFixture(test: NoArgTest) = {
-    assume(initialized)
-    test()
-  }
+  override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
 
-  "GPUSymmetricMatrix" should "perform matrix-matrix multiplication" in {
+  it should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val XXtX = GPUMatrix.create(hostXnumRows, hostXnumCols)
@@ -38,21 +35,24 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     XXtX =: X * XtX
     XtXXt =: XtX * X.T
 
-    testGPUEquality(XXtX, hostXXtX.flatten)
-    testGPUEquality(XtXXt, hostXXtX.transpose.flatten)
-    testGPUEquality(XtX, hostXtX.flatten)
-    testGPUEquality(X, hostX.flatten)
+    testGPUEquality(XXtX, hostXXtX)
+    testGPUEquality(XtXXt, hostXtXXt)
+    testGPUEquality(XtX, hostXtX)
+    testGPUEquality(X, hostX)
   }
 
   it should "perform matrix-vector multiplication" in {
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val v = GPUVector.createFromArray(hostV)
     val XtXv = GPUVector.create(v.length)
+    val vtXtX = GPUVector.create(v.length)
 
     XtXv =: XtX * v
+    vtXtX =: v.T * XtX
 
     testGPUEquality(XtXv, hostXtXv)
-    testGPUEquality(XtX, hostXtX.flatten)
+    testGPUEquality(vtXtX, hostvtXtX)
+    testGPUEquality(XtX, hostXtX)
     testGPUEquality(v, hostV)
   }
 
@@ -65,10 +65,46 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
 
     R shouldEqual XtX.chol
 
-    testGPUEquality(R, hostR.flatten)
+    testGPUEquality(R, hostR)
   }
 
   it should "solve a linear system using provided Cholesky decomposition" in {
-    cancel()
+    val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
+    val v = GPUVector.createFromArray(hostV)
+    val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
+    val ws = createCholeskyWorkspace(XtX)
+    val XtXinvV = GPUVector.create(v.length)
+    val vtXtXinv = GPUVector.create(v.length)
+
+    XtX.attachCholesky(R, ws)
+
+    XtXinvV =: XtX.inv * v
+    vtXtXinv =: v.T * XtX.inv
+
+    testGPUEquality(XtXinvV, hostXtXinvV)
+    testGPUEquality(vtXtXinv, hostvtXtXinv)
+    testGPUEquality(XtX, hostXtX)
+    testGPUEquality(R, hostR)
+    testGPUEquality(v, hostV)
+  }
+
+  it should "solve a matrix equation using provided Cholesky decomposition" in {
+    val X = GPUMatrix.createFromColumnMajorArray(hostX)
+    val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
+    val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
+    val ws = createCholeskyWorkspace(XtX)
+    val XXtXinv = GPUMatrix.create(hostXnumRows, hostXnumCols)
+    val XtXinvXt = GPUMatrix.create(hostXnumCols, hostXnumRows)
+
+    XtX.attachCholesky(R, ws)
+
+    XXtXinv =: X * XtX.inv
+    XtXinvXt =: XtX.inv * X.T
+
+    testGPUEquality(XXtXinv, hostXXtXinv)
+    testGPUEquality(XtXinvXt, hostXtXinvXt)
+    testGPUEquality(X, hostX)
+    testGPUEquality(XtX, hostXtX)
+    testGPUEquality(R, hostR)
   }
 }

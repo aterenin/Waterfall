@@ -31,5 +31,5 @@ class GPUInverseTriangularMatrix(val inv: GPUTriangularMatrix,
   val fillMode = inv.fillMode
   def *(that: GPUMatrix) = new GPUMatrixResult(GPUTriangularSolveMatrix(this, that))
   def *(that: GPUVector) = new GPUVectorResult(GPUTriangularSolveVector(this, that))
-  val T = new GPUInverseTriangularMatrix(inv, isTranspose = !isTranspose)
+  def T = new GPUInverseTriangularMatrix(inv, isTranspose = !isTranspose)
 }

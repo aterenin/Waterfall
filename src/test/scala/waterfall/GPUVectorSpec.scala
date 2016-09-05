@@ -20,25 +20,10 @@ package waterfall
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 
 class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
-  import GPUTestInit._
+  import GPUTestUtils._
 
-  override def withFixture(test: NoArgTest) = {
-    assume(initialized)
-    test()
-  }
+  override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
-
-  "GPUVector" should "perform vector-matrix multiplication" in {
-    val X = GPUMatrix.createFromColumnMajorArray(hostX)
-    val v = GPUVector.createFromArray(hostV)
-    val vtXt = GPUVector.create(v.length)
-
-    vtXt =: v.T * X.T
-
-    testGPUEquality(vtXt, hostvtXt)
-    testGPUEquality(X, hostX.flatten)
-    testGPUEquality(v, hostV)
-  }
 
   it should "perform in-place vector addition" in {
     val v = GPUVector.createFromArray(hostV)
@@ -59,5 +44,14 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
     c =: (v dot v)
 
     testGPUEquality(c, Array(hostV.zip(hostV).map(p => p._1 * p._2).sum))
+  }
+
+  it should "perform an outer product computations" in {
+    val v = GPUVector.createFromArray(hostV)
+    val VVt = GPUMatrix.create(v.length, v.length)
+
+    VVt =: (v outer v)
+
+    testGPUEquality(VVt, Array(hostV).multiplyBy(hostV.map(v => Array(v))))
   }
 }
