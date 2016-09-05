@@ -40,7 +40,13 @@ class GPUVectorResult(computation: GPUComputation) {
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
     case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y.mutateTranspose(true))  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
-    case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.mutateTranspose(true)) // see lgemv, and note A^T = A
+    case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.mutateTranspose(true)) // xA=y is equivalent to y^T = A x^T since A = A^T
+    case GPUTriangularMatrixVector(a: GPUTriangularMatrix, x: GPUVector) => ???
+    case GPULeftTriangularMatrixVector(x: GPUVector, a: GPUTriangularMatrix) => ???
+    case GPUTriangularSolveVector(ainv: GPUInverseTriangularMatrix, x: GPUVector) => ???
+    case GPULeftTriangularSolveVector(x: GPUVector, ainv: GPUInverseTriangularMatrix) => ???
+    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
+    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
     case _ => throw new Exception("wrong vector operation in execute()")
   }
 

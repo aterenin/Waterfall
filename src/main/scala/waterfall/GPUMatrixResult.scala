@@ -45,6 +45,12 @@ class GPUMatrixResult(computation: GPUComputation) {
     case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C)
     case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C, transeposeC = true)
     case GPUPositiveDefiniteTriangularFactorize(a,ws) => executeSpotrf(a,C,ws)
+    case GPUTriangularMatrixMatrix(a: GPUTriangularMatrix, b: GPUMatrix) => ???
+    case GPULeftTriangularMatrixMatrix(b: GPUMatrix, a: GPUTriangularMatrix) => ???
+    case GPUTriangularSolveMatrix(ainv: GPUInverseTriangularMatrix, b: GPUMatrix) => ???
+    case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) => ???
+    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
+    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
     case _ => throw new Exception("wrong matrix operation in execute(C)")
   }
 

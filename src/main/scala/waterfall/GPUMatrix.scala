@@ -48,17 +48,29 @@ class GPUMatrix(ptr: Pointer,
   def constant = iConstant
   def leadingDimension = if(isTranspose) numCols else numRows
 
-  private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { if(constant.nonEmpty || newConstant.nonEmpty) { iConstant = newConstant }; this }
+  private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { iConstant = newConstant; this }
   private[waterfall] def mutateTranspose(newTranspose: Boolean) = { if(newTranspose != isTranspose) { iIsTranspose = newTranspose; iNumRows = numCols; iNumCols = numRows }; this }
 
-  def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))
   def +(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralAddMatrix(this, that))
-
+  def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))
   def *(that: GPUVector) = new GPUVectorResult(GPUGeneralMatrixVector(this, that))
   def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPULeftSymmetricMatrixMatrix(this, that))
   def *(that: GPUTriangularMatrix) = new GPUMatrixResult(GPULeftTriangularMatrixMatrix(this, that))
+  def *(that: GPUInverseSymmetricMatrix) = new GPUMatrixResult(GPULeftPositiveDefiniteTriangularSolve(this, that))
+  def *(that: GPUInverseTriangularMatrix) = new GPUMatrixResult(GPULeftTriangularSolveMatrix(this, that))
 
   def T = new GPUMatrix(ptr, iNumRows = numCols, iNumCols = numRows, iIsTranspose = !isTranspose, constant)
+
+  def asColumnVector = {
+    assert(numCols == 1, s"unsupported: tried to express matrix as row vector, but there are multiple rows")
+    new GPUVector(ptr, numRows, iIsTranspose = false, iConstant = constant)
+  }
+  def asRowVector = {
+    assert(numCols == 1, s"unsupported: tried to express matrix as column vector, but there are multiple columns")
+    new GPUVector(ptr, numRows, iIsTranspose = true, iConstant = constant)
+  }
+  def asGPUVector = if(numCols == 1) asColumnVector else if(numRows == 1) asRowVector else
+    throw new Exception(s"unsupported: tried to express matrix as vector, but neither numRows and numCols are equal to 1")
 
   def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = Option(that))
   def withoutConstant = if(constant.nonEmpty) new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = None) else this

@@ -24,11 +24,17 @@ class GPUTriangularMatrix(ptr: Pointer,
                           val size: Int,
                           val fillMode: FillMode,
                           isTranspose: Boolean = false,
-                          constant: Option[GPUConstant] = None
-                         ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=isTranspose, constant) {
+                          const: Option[GPUConstant] = None
+                         ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=isTranspose, const) {
   override def T = super.T.declareTriangular(fillMode)
 
+  def inv = {
+    assert(constant.isEmpty, s"unsupported: cannot invert matrix with attached constant")
+    new GPUInverseTriangularMatrix(this, isTranspose)
+  }
+
   override def *(that: GPUMatrix) = new GPUMatrixResult(GPUTriangularMatrixMatrix(this, that))
+  override def *(that: GPUVector) = new GPUVectorResult(GPUTriangularMatrixVector(this, that))
 
   override def withConstant(that: GPUConstant) = super.withConstant(that).declareTriangular(fillMode)
   override def withoutConstant = super.withoutConstant.declareTriangular(fillMode)

@@ -43,29 +43,19 @@ class GPUVector(ptr: Pointer,
   def isTranspose = iIsTranspose
   def constant = iConstant
 
-  private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { if(constant.nonEmpty || newConstant.nonEmpty) { iConstant = newConstant }; this }
+  private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { iConstant = newConstant; this }
   private[waterfall] def mutateTranspose(newTranspose: Boolean) = { iIsTranspose = newTranspose; this }
 
   def +(that: GPUVector) = new GPUVectorResult(GPUAlphaXPlusY(this, that))
-
-  def *(that: GPUMatrix) = {
-    assert(isTranspose, s"mismatched vector dimensions: must be row vector")
-    new GPUVectorResult(GPULeftGeneralMatrixVector(this, that))
-  }
-  def *(that: GPUSymmetricMatrix) = {
-    // xA=y is equivalent to y^T = A x^T since A = A^T
-    assert(isTranspose, s"mismatched vector dimensions: must be row vector")
-    new GPUVectorResult(GPULeftSymmetricMatrixVector(this, that))
-  }
-
-  def *(that: GPUTriangularMatrix) = {
-    assert(isTranspose, s"mismatched vector dimensions: must be row vector")
-    new GPUVectorResult(GPULeftTriangularMatrixVector(this, that))
-  }
+  def *(that: GPUMatrix) = new GPUVectorResult(GPULeftGeneralMatrixVector(this, that))
+  def *(that: GPUSymmetricMatrix) = new GPUVectorResult(GPULeftSymmetricMatrixVector(this, that))
+  def *(that: GPUTriangularMatrix) = new GPUVectorResult(GPULeftTriangularMatrixVector(this, that))
+  def *(that: GPUInverseSymmetricMatrix) = new GPUVectorResult(GPULeftPositiveDefiniteTriangularSolve(this.asGPUMatrix, that))
+  def *(that: GPUInverseTriangularMatrix) = new GPUVectorResult(GPULeftTriangularSolveVector(this, that))
 
   // won't have desired order of operations - Scala limitation
   def dot(that: GPUVector) = new GPUConstantResult(GPUDot(this, that))
-  def outer(that: GPUVector) = this.asColumnVector.toGPUMatrix * that.asRowVector.toGPUMatrix
+  def outer(that: GPUVector) = this.asColumnVector.asGPUMatrix * that.asRowVector.asGPUMatrix
 
   def T = new GPUVector(ptr,  length, iIsTranspose = !isTranspose, constant, stride)
   def asColumnVector = new GPUVector(ptr,  length, iIsTranspose = false, constant, stride)
@@ -74,7 +64,7 @@ class GPUVector(ptr: Pointer,
   def withConstant(that: GPUConstant) = new GPUVector(ptr, length, isTranspose, iConstant = Option(that), stride)
   def withoutConstant = if(constant.nonEmpty) new GPUVector(ptr, length, isTranspose, iConstant = None, stride) else this
 
-  def toGPUMatrix = new GPUMatrix(ptr, length, 1, isTranspose)
+  def asGPUMatrix = new GPUMatrix(ptr, if(isTranspose) 1 else length, if(isTranspose) length else 1)
 }
 
 object GPUVector {

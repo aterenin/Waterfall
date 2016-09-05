@@ -39,7 +39,9 @@ case class GPULeftGeneralMatrixVector(xT: GPUVector, A: GPUMatrix) extends GPUCo
 case class GPUGeneralMatrixVector(A: GPUMatrix, x: GPUVector) extends GPUComputation
 
 case class GPUPositiveDefiniteTriangularFactorize(A: GPUSymmetricMatrix, ws: CholeskyWorkspace) extends GPUComputation
-case object GPUPositiveDefiniteTriangularSolve extends GPUComputation
+
+case class GPUPositiveDefiniteTriangularSolve(Ainv: GPUInverseSymmetricMatrix, B: GPUMatrix) extends GPUComputation
+case class GPULeftPositiveDefiniteTriangularSolve(B: GPUMatrix, Ainv: GPUInverseSymmetricMatrix) extends GPUComputation
 
 case class GPUSymmetricMatrixMatrix(A: GPUSymmetricMatrix, B: GPUMatrix) extends GPUComputation
 case class GPULeftSymmetricMatrixMatrix(B: GPUMatrix, A: GPUSymmetricMatrix) extends GPUComputation
@@ -53,4 +55,8 @@ case class GPULeftTriangularMatrixMatrix(B: GPUMatrix, A: GPUTriangularMatrix) e
 case class GPUTriangularMatrixVector(A: GPUTriangularMatrix, x: GPUVector) extends GPUComputation
 case class GPULeftTriangularMatrixVector(x: GPUVector, A: GPUTriangularMatrix) extends GPUComputation
 
-case object GPUTriangularSolve extends GPUComputation
+case class GPUTriangularSolveMatrix(Ainv: GPUInverseTriangularMatrix, B: GPUMatrix) extends GPUComputation
+case class GPULeftTriangularSolveMatrix(B: GPUMatrix, Ainv: GPUInverseTriangularMatrix) extends GPUComputation
+
+case class GPUTriangularSolveVector(Ainv: GPUInverseTriangularMatrix, b: GPUVector) extends GPUComputation
+case class GPULeftTriangularSolveVector(b: GPUVector, Ainv: GPUInverseTriangularMatrix) extends GPUComputation

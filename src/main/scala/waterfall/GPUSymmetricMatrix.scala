@@ -37,7 +37,11 @@ class GPUSymmetricMatrix(ptr: Pointer,
   override def *(that: GPUVector) = new GPUVectorResult(GPUSymmetricMatrixVector(this, that))
 
   def chol = iCholesky.getOrElse(throw new Exception(s"tried to get Cholesky decomposition, but none attached"))
-  def inv = ???
+  def inv = {
+    assert(constant.isEmpty, s"unsupported: cannot invert matrix with attached constant")
+    assert(hasCholesky, s"unsupported: tried to invert symmetric matrix without attached Cholesky decomposition")
+    new GPUInverseSymmetricMatrix(this)
+  }
 
   def hasCholesky = iCholesky.nonEmpty
 
