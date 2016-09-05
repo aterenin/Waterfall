@@ -25,7 +25,7 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
 
-  it should "perform matrix-matrix multiplication" in {
+  "GPUMatrix" should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XtX = GPUMatrix.create(hostXtX.length, hostXtX.length)
 

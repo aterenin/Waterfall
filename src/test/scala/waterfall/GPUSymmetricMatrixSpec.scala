@@ -26,7 +26,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
 
-  it should "perform matrix-matrix multiplication" in {
+  "GPUSymmetricMatrix" should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val XXtX = GPUMatrix.create(hostXnumRows, hostXnumCols)
@@ -68,7 +68,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     testGPUEquality(R, hostR)
   }
 
-  it should "solve a linear system using provided Cholesky decomposition" in {
+  "GPUInverseSymmetricMatrix" should "solve a linear system using provided Cholesky decomposition" in {
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val v = GPUVector.createFromArray(hostV)
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular

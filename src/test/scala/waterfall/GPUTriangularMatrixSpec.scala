@@ -26,7 +26,7 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
   override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
 
-  it should "perform matrix-matrix multiplication" in {
+  "GPUTriangularMatrix" should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
     val XR = GPUMatrix.create(hostXnumRows, hostXnumCols)
@@ -56,7 +56,7 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
     testGPUEquality(R, hostR)
   }
 
-  it should "solve a triangular system" in {
+  "GPUInverseTriangularMatrix" should "solve a triangular system" in {
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
     val v = GPUVector.createFromArray(hostV)
     val RinvV = GPUVector.create(v.length)
@@ -72,5 +72,20 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
     testGPUEquality(vtRinvt2, hostVtRinvt)
     testGPUEquality(R, hostR)
     testGPUEquality(v, hostV)
+  }
+
+  it should "solve a triangular matrix equation" in {
+    val X = GPUMatrix.createFromColumnMajorArray(hostX)
+    val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
+    val XRinv = GPUMatrix.create(hostXnumRows, hostXnumCols)
+    val RinvXt = GPUMatrix.create(hostXnumCols, hostXnumRows)
+
+    XRinv =: X * R.inv
+    RinvXt =: R.inv * X.T
+
+    testGPUEquality(XRinv, hostXRinv)
+    testGPUEquality(RinvXt, hostRinvXt)
+    testGPUEquality(X, hostX)
+    testGPUEquality(R, hostR)
   }
 }

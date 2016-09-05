@@ -24,6 +24,15 @@ class GPUVectorSpec extends FlatSpec with Assertions with Matchers {
 
   override def withFixture(test: NoArgTest) = { assume(initialized); test() }
 
+  "GPUVector" should "perform out-of-place vector addition" in {
+    val v = GPUVector.createFromArray(hostV)
+    val twoV = GPUVector.create(v.length)
+
+    twoV =: v + v
+
+    testGPUEquality(twoV, hostV.map(_ * 2.0f))
+    testGPUEquality(v, hostV)
+  }
 
   it should "perform in-place vector addition" in {
     val v = GPUVector.createFromArray(hostV)
