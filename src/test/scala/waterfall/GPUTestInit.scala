@@ -15,7 +15,8 @@
   * /
   */
 
-import waterfall.{GPUArray, GPUTriangularMatrix, Waterfall}
+package waterfall
+
 import org.scalatest.Matchers._
 
 object GPUTestInit {

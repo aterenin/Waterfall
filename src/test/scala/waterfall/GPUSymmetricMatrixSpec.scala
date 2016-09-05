@@ -15,8 +15,9 @@
   * /
   */
 
+package waterfall
+
 import org.scalatest.{Assertions, FlatSpec, Matchers}
-import waterfall.{GPUArray, GPUMatrix, GPUVector}
 import waterfall.MatrixProperties.createCholeskyWorkspace
 
 class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {

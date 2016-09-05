@@ -15,8 +15,9 @@
   * /
   */
 
+package waterfall
+
 import org.scalatest.{Assertions, FlatSpec, Matchers}
-import waterfall.{GPUArray, GPUMatrix, GPUVector}
 
 class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   import GPUTestInit._
