@@ -18,3 +18,4 @@ output-remote/
 data/
 scratch.sc
 lib/
+*.sh
