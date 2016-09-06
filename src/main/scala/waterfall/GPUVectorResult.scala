@@ -28,14 +28,7 @@ import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits}
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUVectorResult(computation: GPUComputation) {
-  def =:(y: GPUVector): GPUVector = execute(y.mutateConstant(None).mutateTranspose(false))
-  def +=:(y: GPUVector): GPUVector  = execute(y.setInPlaceAdditionConstant().mutateTranspose(false))
-
-  private implicit class ResultImplicits(v: GPUVector) {
-    def setInPlaceAdditionConstant() = if(v.constant.nonEmpty) v else v.mutateConstant(Some(Waterfall.Constants.one))
-  }
-
-  private def execute(y: GPUVector) = computation match {
+  def =:(y: GPUVector): GPUVector = computation match {
     case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
     case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y, transposeY = true)  // Ax=y is equivalent to y^T = x^T A^T
@@ -47,15 +40,28 @@ class GPUVectorResult(computation: GPUComputation) {
     case GPULeftTriangularSolveVector(x: GPUVector, ainv: GPUInverseTriangularMatrix) => ???
     case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
     case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
-    case _ => throw new Exception("wrong vector operation in execute()")
+    case _ => throw new Exception("wrong vector operation in =:")
+  }
+
+  def +=:(y: GPUVector): GPUVector  = computation match {
+    case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y, inplace = true)
+    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y, inplace = true, transposeY = true)  // Ax=y is equivalent to y^T = x^T A^T
+    case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y, inplace = true)
+    case GPULeftSymmetricMatrixVector(xT: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, xT, y, inplace = true, transposeY = true) // xA=y is equivalent to y^T = A x^T since A = A^T
+    case _ => throw new Exception("unsupported: cannot execute given vector operation in-place in +=:")
+  }
+
+  private implicit class ResultImplicits(v: GPUVector) {
+    def setInPlaceAdditionConstant() = if(v.constant.nonEmpty) v else v.mutateConstant(Some(Waterfall.Constants.one))
   }
 
   private def executeSaxpy(x1: GPUVector, x2: GPUVector, y: GPUVector) = {
+    // no need to prepare output - constant and transpose don't affect computation and are mutated at the end
+
     // check for compatibility
     assert(x1.length == x2.length && x1.length == y.length, s"mismatched vector dimensions: got ${x1.length} != ${x2.length} != ${y.length}")
-    assert(x1.isTranspose == x2.isTranspose && x1.isTranspose == y.isTranspose, s"mismatched vector dimensions: tried to add row vector to column vector")
+    assert(x1.isTranspose == x2.isTranspose, s"mismatched vector dimensions: tried to add row vector to column vector")
     assert(x1.constant.isEmpty || x2.constant.isEmpty, s"unsupported: both vectors being added cannot have constant")
-    assert(y.constant.isEmpty, s"unsupported: in-place addition supported only through =: for vectors")
 
     // determine which vector to copy, if any
     val x = if(x1.ptr eq y.ptr) { // operation: y = alpha x_2 + y
@@ -87,7 +93,11 @@ class GPUVectorResult(computation: GPUComputation) {
     y.mutateConstant(None).mutateTranspose(x.isTranspose)
   }
 
-  private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
+  private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector, inplace: Boolean = false, transposeY: Boolean = false) = {
+    // prepare output
+    if(!inplace) y.mutateConstant(None) else y.setInPlaceAdditionConstant()
+    y.mutateTranspose(false)
+
     // check for compatibility
     assert(A.numCols == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
     assert(A.numRows == y.length, s"mismatched vector dimensions: got ${A.numRows} != ${y.length}")
@@ -113,7 +123,11 @@ class GPUVectorResult(computation: GPUComputation) {
     y.mutateConstant(None).mutateTranspose(transposeY)
   }
 
-  private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
+  private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector, inplace: Boolean = false, transposeY: Boolean = false) = {
+    // prepare output
+    if(!inplace) y.mutateConstant(None) else y.setInPlaceAdditionConstant()
+    y.mutateTranspose(false)
+
     // check for compatibility
     assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
     assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")

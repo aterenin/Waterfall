@@ -30,14 +30,7 @@ import MatrixProperties.{CholeskyWorkspace, Left, Right}
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUMatrixResult(computation: GPUComputation) {
-  def =:(C: GPUMatrix): GPUMatrix = execute(C.mutateConstant(None).mutateTranspose(false))
-  def +=:(C: GPUMatrix): GPUMatrix  = execute(C.setInPlaceAdditionConstant().mutateTranspose(false))
-
-  private implicit class ResultImplicits(M: GPUMatrix) {
-    def setInPlaceAdditionConstant() = if(M.constant.nonEmpty) M else M.mutateConstant(Some(Waterfall.Constants.one))
-  }
-
-  private def execute(C: GPUMatrix) = computation match {
+  def =:(C: GPUMatrix): GPUMatrix = computation match {
     case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
     case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
     case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C)
@@ -51,10 +44,26 @@ class GPUMatrixResult(computation: GPUComputation) {
     case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) => ???
     case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
     case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
-    case _ => throw new Exception("wrong matrix operation in execute(C)")
+    case _ => throw new Exception("wrong matrix operation in =:")
+  }
+
+  def +=:(C: GPUMatrix): GPUMatrix  = computation match {
+    case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C, inplace = true)
+    case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose => executeSsymm(a,b,C, inplace = true)
+    case GPUSymmetricMatrixMatrix(a,b) if b.isTranspose => executeSsymm(b.T,a,C, inplace = true, transeposeC = true)
+    case GPULeftSymmetricMatrixMatrix(b,a) if !b.isTranspose => executeSsymm(b,a,C, inplace = true)
+    case GPULeftSymmetricMatrixMatrix(b,a) if b.isTranspose => executeSsymm(a,b.T,C, inplace = true, transeposeC = true)
+    case _ => throw new Exception("unsupported: cannot execute given matrix operation in-place in +=:")
+  }
+
+  private implicit class ResultImplicits(M: GPUMatrix) {
+    def setInPlaceAdditionConstant() = if(M.constant.nonEmpty) M else M.mutateConstant(Some(Waterfall.Constants.one))
   }
 
   private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
+    // prepare output
+    C.mutateConstant(None).mutateTranspose(false)
+
     // check for compatibility
     assert(A.numRows == B.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numRows}")
     assert(B.numRows == C.numRows, s"mismatched matrix dimensions: got ${B.numRows} != ${C.numRows}")
@@ -84,7 +93,11 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None)
   }
 
-  private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
+  private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix, inplace: Boolean = false) = {
+    // prepare output
+    if(!inplace) C.mutateConstant(None) else C.setInPlaceAdditionConstant()
+    C.mutateTranspose(false)
+
     // check for compatibility
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
     assert(B.numCols == C.numCols, s"mismatched matrix dimensions: got ${B.numCols} != ${C.numCols}")
@@ -110,8 +123,12 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None)
   }
 
-  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, transeposeC: Boolean = false) = {
-    //determine parameters and check for compatibility
+  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, inplace: Boolean = false, transeposeC: Boolean = false) = {
+    // prepare output
+    if(!inplace) C.mutateConstant(None) else C.setInPlaceAdditionConstant()
+    C.mutateTranspose(false)
+
+    // determine parameters and check for compatibility
     val (a, b, side) = (M,N) match {
       case (b: GPUMatrix, a: GPUSymmetricMatrix) =>
         assert(a.size == b.numRows, s"mismatched matrix dimensions: got ${a.size} != ${b.numRows}")
@@ -150,9 +167,12 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(uncheckedC.isInstanceOf[GPUTriangularMatrix], s"unsupported: output of Cholesky factorization needs to be declared triangular")
     val C = uncheckedC.asInstanceOf[GPUTriangularMatrix]
 
+    // prepare output
+    if(!(A.ptr eq C.ptr)) C.mutateConstant(None) // don't destroy constant check for A if performed in-place
+
     // check for compatibility
     assert(A.size == C.size, s"mismatched matrix dimensions: got ${A.size} != ${C.size}")
-    assert(A.constant.isEmpty && C.constant.isEmpty, s"unsupported: cannot compute Cholesky with attached constants")
+    assert(A.constant.isEmpty, s"unsupported: cannot compute Cholesky with attached constants")
     assert(A.fillMode eq C.fillMode, s"unsupported: Cholesky input and output must have same fill mode")
 
     // if not in-place, copy to output, and attach Cholesky decomposition to original matrix
