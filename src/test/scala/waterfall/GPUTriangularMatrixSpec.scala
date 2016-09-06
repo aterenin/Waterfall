@@ -53,7 +53,7 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
     vtRt =: v * R.T
 
     testGPUEquality(Rv, hostRv)
-    testGPUEquality(vtRt, hostvtRt)
+    testGPUEquality(vtRt, hostvtRt, transpose = true)
     testGPUEquality(v, hostV)
     testGPUEquality(R, hostR)
   }
@@ -71,8 +71,8 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
     vtRinvt2 =: v.T * R.T.inv
 
     testGPUEquality(RinvV, hostRinvV)
-    testGPUEquality(vtRinvt, hostVtRinvt)
-    testGPUEquality(vtRinvt2, hostVtRinvt)
+    testGPUEquality(vtRinvt, hostVtRinvt, transpose = true)
+    testGPUEquality(vtRinvt2, hostVtRinvt, transpose = true)
     testGPUEquality(R, hostR)
     testGPUEquality(v, hostV)
   }

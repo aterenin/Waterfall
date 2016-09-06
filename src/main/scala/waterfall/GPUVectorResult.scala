@@ -38,9 +38,9 @@ class GPUVectorResult(computation: GPUComputation) {
   private def execute(y: GPUVector) = computation match {
     case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
-    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y.mutateTranspose(true))  // Ax=y is equivalent to y^T = x^T A^T
+    case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y, transposeY = true)  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
-    case GPULeftSymmetricMatrixVector(x: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, x.T, y.mutateTranspose(true)) // xA=y is equivalent to y^T = A x^T since A = A^T
+    case GPULeftSymmetricMatrixVector(xT: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, xT, y, transposeY = true) // xA=y is equivalent to y^T = A x^T since A = A^T
     case GPUTriangularMatrixVector(a: GPUTriangularMatrix, x: GPUVector) => ???
     case GPULeftTriangularMatrixVector(x: GPUVector, a: GPUTriangularMatrix) => ???
     case GPUTriangularSolveVector(ainv: GPUInverseTriangularMatrix, x: GPUVector) => ???
@@ -84,14 +84,14 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y.mutateConstant(None)
+    y.mutateConstant(None).mutateTranspose(x.isTranspose)
   }
 
-  private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector) = {
+  private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
     // check for compatibility
     assert(A.numCols == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
     assert(A.numRows == y.length, s"mismatched vector dimensions: got ${A.numRows} != ${y.length}")
-    assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: incorrect row/column vector")
+    assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
     assert(A.constant.isEmpty || x.constant.isEmpty, s"unsupported: only one input constant can be defined")
 
     // determine constants
@@ -110,14 +110,14 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y.mutateConstant(None)
+    y.mutateConstant(None).mutateTranspose(transposeY)
   }
 
-  private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector) = {
+  private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
     // check for compatibility
     assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
     assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
-    assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: incorrect row/column vector")
+    assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
     assert(A.constant.isEmpty || x.constant.isEmpty, s"unsupported: only one input constant can be defined")
 
     // determine constants
@@ -136,6 +136,6 @@ class GPUVectorResult(computation: GPUComputation) {
     ).checkJCublasStatus()
 
     // return result
-    y.mutateConstant(None)
+    y.mutateConstant(None).mutateTranspose(transposeY)
   }
 }

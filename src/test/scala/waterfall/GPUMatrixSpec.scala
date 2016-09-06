@@ -66,7 +66,7 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
     vtXt =: v.T * X.T
 
     testGPUEquality(Xv, hostXv)
-    testGPUEquality(vtXt, hostvtXt)
+    testGPUEquality(vtXt, hostvtXt, transpose = true)
     testGPUEquality(X, hostX)
     testGPUEquality(v, hostV)
   }

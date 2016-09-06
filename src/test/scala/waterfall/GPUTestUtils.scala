@@ -108,10 +108,12 @@ object GPUTestUtils {
   def testGPUEquality(A: GPUMatrix, B: Array[Array[Float]]): Unit = {
     A.numRows shouldEqual B.head.length
     A.numCols shouldEqual B.length
-    testGPUEquality(A: GPUArray, B.flatten) // annotation needed to prevent infinite tail recursive loop
+    val transposeMatchedB = if(A.isTranspose) B.transpose else B
+    testGPUEquality(A: GPUArray, transposeMatchedB.flatten) // annotation needed to prevent infinite tail recursive loop
   }
-  def testGPUEquality(A: GPUVector, B: Array[Float]): Unit = {
+  def testGPUEquality(A: GPUVector, B: Array[Float], transpose: Boolean = false): Unit = {
     A.length shouldEqual B.length
+    A.isTranspose shouldEqual transpose
     testGPUEquality(A: GPUArray, B) // annotation needed to prevent infinite tail recursive loop
   }
 

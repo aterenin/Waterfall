@@ -51,7 +51,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     vtXtX =: v.T * XtX
 
     testGPUEquality(XtXv, hostXtXv)
-    testGPUEquality(vtXtX, hostvtXtX)
+    testGPUEquality(vtXtX, hostvtXtX, transpose = true)
     testGPUEquality(XtX, hostXtX)
     testGPUEquality(v, hostV)
   }
@@ -82,7 +82,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     vtXtXinv =: v.T * XtX.inv
 
     testGPUEquality(XtXinvV, hostXtXinvV)
-    testGPUEquality(vtXtXinv, hostvtXtXinv)
+    testGPUEquality(vtXtXinv, hostvtXtXinv, transpose = true)
     testGPUEquality(XtX, hostXtX)
     testGPUEquality(R, hostR)
     testGPUEquality(v, hostV)
