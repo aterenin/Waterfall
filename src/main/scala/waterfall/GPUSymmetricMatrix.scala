@@ -26,7 +26,7 @@ class GPUSymmetricMatrix(ptr: Pointer,
                          const: Option[GPUConstant] = None,
                          private var iCholesky: Option[GPUTriangularMatrix] = None
                         ) extends GPUMatrix(ptr, iNumRows=size, iNumCols=size, iIsTranspose=false, const) {
-  override def mutateTranspose(newTranspose: Boolean) = this
+  override def mutateTranspose(newTranspose: Boolean, flagOnly: Boolean = false) = this
   override val isTranspose = false
   override val T = this
 

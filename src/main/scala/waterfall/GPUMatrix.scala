@@ -49,7 +49,11 @@ class GPUMatrix(ptr: Pointer,
   def leadingDimension = if(isTranspose) numCols else numRows
 
   private[waterfall] def mutateConstant(newConstant: Option[GPUConstant]) = { iConstant = newConstant; this }
-  private[waterfall] def mutateTranspose(newTranspose: Boolean) = { if(newTranspose != isTranspose) { iIsTranspose = newTranspose; iNumRows = numCols; iNumCols = numRows }; this }
+  private[waterfall] def mutateTranspose(newTranspose: Boolean, flagOnly: Boolean = false) = {
+    if(newTranspose != isTranspose) {
+      iIsTranspose = newTranspose
+      if(!flagOnly) { val tmpNumRows = numRows; iNumRows = numCols; iNumCols = tmpNumRows } // need to be careful with var swap
+    }; this }
 
   def +(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralAddMatrix(this, that))
   def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))

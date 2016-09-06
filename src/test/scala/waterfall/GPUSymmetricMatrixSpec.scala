@@ -28,15 +28,22 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
 
   "GPUSymmetricMatrix" should "perform matrix-matrix multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
+    val XT = GPUMatrix.createFromColumnMajorArray(hostX.transpose)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val XXtX = GPUMatrix.create(hostXnumRows, hostXnumCols)
     val XtXXt = GPUMatrix.create(hostXnumCols, hostXnumRows)
+    val XXtX2 = GPUMatrix.create(hostXnumRows, hostXnumCols)
+    val XtXXt2 = GPUMatrix.create(hostXnumCols, hostXnumRows)
 
     XXtX =: X * XtX
     XtXXt =: XtX * X.T
+    XXtX2 =: XT.T * XtX
+    XtXXt2 =: XtX * XT
 
     testGPUEquality(XXtX, hostXXtX)
     testGPUEquality(XtXXt, hostXtXXt)
+    testGPUEquality(XXtX2, hostXXtX)
+    testGPUEquality(XtXXt2, hostXtXXt)
     testGPUEquality(XtX, hostXtX)
     testGPUEquality(X, hostX)
   }
