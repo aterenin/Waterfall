@@ -51,12 +51,8 @@ class GPUVectorResult(computation: GPUComputation) {
     case _ => throw new Exception("unsupported: cannot execute given vector operation in-place in +=:")
   }
 
-  private implicit class ResultImplicits(v: GPUVector) {
-    def setInPlaceAdditionConstant() = if(v.constant.nonEmpty) v else v.mutateConstant(Some(Waterfall.Constants.one))
-  }
-
   private def executeSaxpy(x1: GPUVector, x2: GPUVector, y: GPUVector) = {
-    // no need to prepare output - constant and transpose don't affect computation and are mutated at the end
+    // no need to prepare output - constant and transpose don't affect computation and are mutated at the end anyway
 
     // check for compatibility
     assert(x1.length == x2.length && x1.length == y.length, s"mismatched vector dimensions: got ${x1.length} != ${x2.length} != ${y.length}")
@@ -95,7 +91,7 @@ class GPUVectorResult(computation: GPUComputation) {
 
   private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector, inplace: Boolean = false, transposeY: Boolean = false) = {
     // prepare output
-    if(!inplace) y.mutateConstant(None) else y.setInPlaceAdditionConstant()
+    if(!inplace) y.mutateConstant(None) else if(y.constant.isEmpty) y.mutateConstant(Some(Waterfall.Constants.one))
     y.mutateTranspose(false)
 
     // check for compatibility
@@ -125,7 +121,7 @@ class GPUVectorResult(computation: GPUComputation) {
 
   private def executeSsymv(A: GPUSymmetricMatrix, x: GPUVector, y: GPUVector, inplace: Boolean = false, transposeY: Boolean = false) = {
     // prepare output
-    if(!inplace) y.mutateConstant(None) else y.setInPlaceAdditionConstant()
+    if(!inplace) y.mutateConstant(None) else if(y.constant.isEmpty) y.mutateConstant(Some(Waterfall.Constants.one))
     y.mutateTranspose(false)
 
     // check for compatibility
@@ -138,7 +134,7 @@ class GPUVectorResult(computation: GPUComputation) {
     val alpha = A.constant.getOrElse(x.constant.getOrElse(Waterfall.Constants.one))
     val beta = y.constant.getOrElse(Waterfall.Constants.zero)
 
-    // perform single-precision general matrix-vector multiplication
+    // perform single-precision symmetric matrix-vector multiplication
     cublasSsymv(Waterfall.cublasHandle,
       A.fillMode.toFillModeId,
       A.size,

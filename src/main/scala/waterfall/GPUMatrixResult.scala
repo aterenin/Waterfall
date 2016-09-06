@@ -56,10 +56,6 @@ class GPUMatrixResult(computation: GPUComputation) {
     case _ => throw new Exception("unsupported: cannot execute given matrix operation in-place in +=:")
   }
 
-  private implicit class ResultImplicits(M: GPUMatrix) {
-    def setInPlaceAdditionConstant() = if(M.constant.nonEmpty) M else M.mutateConstant(Some(Waterfall.Constants.one))
-  }
-
   private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
     // prepare output
     C.mutateConstant(None).mutateTranspose(false)
@@ -72,7 +68,6 @@ class GPUMatrixResult(computation: GPUComputation) {
     assert(!((A.ptr eq C.ptr) && (B.ptr eq C.ptr)), s"unsupported: cannot in-place add matrix to itself")
     assert(if(A.ptr eq C.ptr) !A.isTranspose else true, s"unsupported: cannot perform in-place transpose")
     assert(if(B.ptr eq C.ptr) !B.isTranspose else true, s"unsupported: cannot perform in-place transpose")
-    assert(C.constant.isEmpty, s"unsupported: in-place addition supported only through =: for matrices")
 
     // determine constants
     val alpha = A.constant.getOrElse(Waterfall.Constants.one)
@@ -95,7 +90,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
   private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix, inplace: Boolean = false) = {
     // prepare output
-    if(!inplace) C.mutateConstant(None) else C.setInPlaceAdditionConstant()
+    if(!inplace) C.mutateConstant(None) else if(C.constant.isEmpty) C.mutateConstant(Some(Waterfall.Constants.one))
     C.mutateTranspose(false)
 
     // check for compatibility
@@ -125,7 +120,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
   private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, inplace: Boolean = false, transeposeC: Boolean = false) = {
     // prepare output
-    if(!inplace) C.mutateConstant(None) else C.setInPlaceAdditionConstant()
+    if(!inplace) C.mutateConstant(None) else if(C.constant.isEmpty) C.mutateConstant(Some(Waterfall.Constants.one))
     C.mutateTranspose(false)
 
     // determine parameters and check for compatibility
@@ -147,7 +142,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     val alpha = a.constant.getOrElse(b.constant.getOrElse(Waterfall.Constants.one))
     val beta = C.constant.getOrElse(Waterfall.Constants.zero)
 
-    // perform single-precision general matrix-matrix multiplication
+    // perform single-precision symmetric matrix-matrix multiplication
     cublasSsymm(Waterfall.cublasHandle,
       side.toSideId, a.fillMode.toFillModeId,
       C.numRows, C.numCols,
@@ -163,12 +158,12 @@ class GPUMatrixResult(computation: GPUComputation) {
   }
 
   private def executeSpotrf(A: GPUSymmetricMatrix, uncheckedC: GPUMatrix, ws: CholeskyWorkspace) = {
-    // check if output has been declared
+    // check if output has been properly declared triangular
     assert(uncheckedC.isInstanceOf[GPUTriangularMatrix], s"unsupported: output of Cholesky factorization needs to be declared triangular")
     val C = uncheckedC.asInstanceOf[GPUTriangularMatrix]
 
     // prepare output
-    if(!(A.ptr eq C.ptr)) C.mutateConstant(None) // don't destroy constant check for A if performed in-place
+    if(!(A.ptr eq C.ptr)) C.mutateConstant(None) // don't invalidate constant check for A if performed in-place
 
     // check for compatibility
     assert(A.size == C.size, s"mismatched matrix dimensions: got ${A.size} != ${C.size}")
@@ -181,7 +176,7 @@ class GPUMatrixResult(computation: GPUComputation) {
       A.attachCholesky(C, ws)
     }
 
-    // perform positive definite triangular factorization
+    // perform single-precision positive definite triangular factorization
     cusolverDnSpotrf(Waterfall.cusolverDnHandle,
       C.fillMode.toFillModeId,
       C.size,
@@ -191,8 +186,7 @@ class GPUMatrixResult(computation: GPUComputation) {
       ws.devInfo
     ).checkJCusolverStatus()
 
-    // TODO: check devInfo to ensure non-singularity - need to be careful here when using CUDA streams
-
+    // TODO: check devInfo to ensure non-singularity - need to be careful here when using CUDA streams because devInfo won't be ready immediately
 
     // return result
     C
