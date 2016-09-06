@@ -99,12 +99,22 @@ object GPUTestUtils {
   val hostXXtXinv = hostX.multiplyBy(hostXtXinv)
   val hostXtXinvXt = hostXXtXinv.transpose
 
+
   def testGPUEquality(A: GPUArray, B: Array[Float]) = {
     A.copyToHost.zip(B).foreach{
       case (l, c) => l shouldEqual (c +- 0.0001f)
     }
   }
-  def testGPUEquality(A: GPUArray, B: Array[Array[Float]]): Unit = testGPUEquality(A, B.flatten)
+  def testGPUEquality(A: GPUMatrix, B: Array[Array[Float]]): Unit = {
+    A.numRows shouldEqual B.head.length
+    A.numCols shouldEqual B.length
+    testGPUEquality(A: GPUArray, B.flatten) // annotation needed to prevent infinite tail recursive loop
+  }
+  def testGPUEquality(A: GPUVector, B: Array[Float]): Unit = {
+    A.length shouldEqual B.length
+    testGPUEquality(A: GPUArray, B) // annotation needed to prevent infinite tail recursive loop
+  }
+
 
 //  def testGPUTriangularEquality(A: GPUTriangularMatrix, B: Array[Float]) = {
 //    A.copyToHost.zip(B)

@@ -59,8 +59,8 @@ class GPUMatrixSpec extends FlatSpec with Assertions with Matchers {
   it should "perform matrix-vector multiplication" in {
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val v = GPUVector.createFromArray(hostV)
-    val Xv = GPUVector.create(v.length)
-    val vtXt = GPUVector.create(v.length)
+    val Xv = GPUVector.create(X.numRows)
+    val vtXt = GPUVector.create(X.numRows)
 
     Xv =: X * v
     vtXt =: v.T * X.T

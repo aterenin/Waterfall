@@ -90,7 +90,7 @@ class GPUVectorResult(computation: GPUComputation) {
   private def executeSgemv(A: GPUMatrix, x: GPUVector, y: GPUVector) = {
     // check for compatibility
     assert(A.numCols == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
-    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
+    assert(A.numRows == y.length, s"mismatched vector dimensions: got ${A.numRows} != ${y.length}")
     assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: incorrect row/column vector")
     assert(A.constant.isEmpty || x.constant.isEmpty, s"unsupported: only one input constant can be defined")
 

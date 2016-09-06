@@ -64,11 +64,11 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     R =: XtX.computeCholesky(ws)
 
     R shouldEqual XtX.chol
-
     testGPUEquality(R, hostR)
   }
 
   "GPUInverseSymmetricMatrix" should "solve a linear system using provided Cholesky decomposition" in {
+    cancel()
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val v = GPUVector.createFromArray(hostV)
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
@@ -89,6 +89,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   it should "solve a matrix equation using provided Cholesky decomposition" in {
+    cancel()
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
