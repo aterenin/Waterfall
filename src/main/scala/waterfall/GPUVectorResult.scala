@@ -213,7 +213,7 @@ class GPUVectorResult(computation: GPUComputation) {
     assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
     assert(x.constant.isEmpty, s"unsupported: this operation cannot be performed with constants")
 
-    // get cholesky
+    // get Cholesky
     val R = Ainv.underlyingCholesky
 
     // if not in-place, copy to output

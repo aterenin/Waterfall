@@ -46,8 +46,10 @@ class GPUMatrixResult(computation: GPUComputation) {
     case GPUTriangularSolveMatrix(ainv: GPUInverseTriangularMatrix, b: GPUMatrix) if b.isTranspose => executeStrsm(b.T,ainv.T,C, transposeC = true)
     case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) if !b.isTranspose => executeStrsm(b,ainv,C)
     case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) if b.isTranspose => executeStrsm(ainv.T,b.T,C, transposeC = true)
-    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
-    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
+    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) if !b.isTranspose => executeSpotrs(ainv,b,C)
+    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) if b.isTranspose => executeSpotrs(b.T,ainv,C, transposeC = true)
+    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) if !b.isTranspose => executeSpotrs(b,ainv,C)
+    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) if b.isTranspose => executeSpotrs(ainv,b.T,C, transposeC = true)
     case _ => throw new Exception("wrong matrix operation in =:")
   }
 
@@ -231,6 +233,61 @@ class GPUMatrixResult(computation: GPUComputation) {
       C.numRows, C.numCols,
       alpha.ptr,
       a.ptr, a.leadingDimension,
+      C.ptr, C.leadingDimension
+    ).checkJCublasStatus()
+
+    // return result
+    C.mutateConstant(None).mutateTranspose(transposeC)
+  }
+
+  private def executeSpotrs(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false) = {
+    // prepare output
+    C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
+
+    // determine parameters and check for compatibility
+    val (ainv, b, side) = (M,N) match {
+      case (b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) =>
+        assert(b.numCols == ainv.size, s"mismatched matrix dimensions: got ${b.numCols} != ${ainv.size}")
+        assert(ainv.size == C.numCols, s"mismatched matrix dimensions: got ${ainv.size} != ${C.numCols}")
+        assert(b.numRows == C.numRows, s"mismatched matrix dimensions: got ${b.numRows} != ${C.numRows}")
+        (ainv, b, Right)
+      case (ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) =>
+        assert(ainv.size == b.numRows, s"mismatched matrix dimensions: got ${ainv.size} != ${b.numRows}")
+        assert(ainv.size == C.numRows, s"mismatched matrix dimensions: got ${ainv.size} != ${C.numRows}")
+        assert(b.numCols == C.numCols, s"mismatched matrix dimensions: got ${b.numCols} != ${C.numCols}")
+        (ainv, b, Left)
+    }
+    val firstTransposeOp = side match {case Left => true; case Right => false}
+
+    // get Cholesky
+    val R = ainv.underlyingCholesky
+    val effectiveFirstTransposeOp = if(!R.isTranspose) firstTransposeOp else !firstTransposeOp
+
+    // determine constants
+    val alpha = b.constant.getOrElse(Waterfall.Constants.one)
+
+    // if not in-place, copy to output
+    if(!(b.ptr eq C.ptr)) b.copyTo(C)
+
+    // perform single-precision triangular solve matrix, first one on transpose of Cholesky
+    cublasStrsm(Waterfall.cublasHandle,
+      side.toSideId, R.fillMode.toFillModeId,
+      effectiveFirstTransposeOp.toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      C.numRows, C.numCols,
+      alpha.ptr,
+      R.ptr, R.leadingDimension,
+      C.ptr, C.leadingDimension
+    ).checkJCublasStatus()
+
+    // perform single-precision triangular solve matrix, second one not on transpose of Cholesky
+    cublasStrsm(Waterfall.cublasHandle,
+      side.toSideId, R.fillMode.toFillModeId,
+      (!effectiveFirstTransposeOp).toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      C.numRows, C.numCols,
+      Waterfall.Constants.one.ptr, // constant was already used in previous triangular solve
+      R.ptr, R.leadingDimension,
       C.ptr, C.leadingDimension
     ).checkJCublasStatus()
 

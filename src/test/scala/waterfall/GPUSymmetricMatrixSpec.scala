@@ -97,7 +97,6 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   it should "solve a matrix equation using provided Cholesky decomposition" in {
-    cancel()
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XT = GPUMatrix.createFromColumnMajorArray(hostX.transpose)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
@@ -113,7 +112,7 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
     XXtXinv =: X * XtX.inv
     XXtXinv2 =: XT.T * XtX.inv
     XtXinvXt =: XtX.inv * X.T
-    XtXinvXt =: XtX.inv * XT
+    XtXinvXt2 =: XtX.inv * XT
 
     testGPUEquality(XXtXinv, hostXXtXinv)
     testGPUEquality(XXtXinv2, hostXXtXinv)
