@@ -94,7 +94,6 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   it should "solve a triangular matrix equation" in {
-    cancel()
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
     val XT = GPUMatrix.createFromColumnMajorArray(hostX.transpose)
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular

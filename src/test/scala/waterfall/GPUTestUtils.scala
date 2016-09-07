@@ -91,8 +91,8 @@ object GPUTestUtils {
 
   val hostXRinv = hostX.multiplyBy(hostRinv)
   val hostXRinvt = hostX.multiplyBy(hostRinv.transpose)
-  val hostRinvXt = hostXRinv.transpose
-  val hostRinvtXt = hostXRinvt.transpose
+  val hostRinvXt = hostXRinvt.transpose
+  val hostRinvtXt = hostXRinv.transpose
 
   val hostRinvV = hostRinv.multiplyBy(hostV)
   val hostVtRinvt = hostRinvV

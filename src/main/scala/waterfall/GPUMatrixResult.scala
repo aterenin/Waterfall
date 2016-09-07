@@ -42,8 +42,10 @@ class GPUMatrixResult(computation: GPUComputation) {
     case GPUTriangularMatrixMatrix(a: GPUTriangularMatrix, b: GPUMatrix) if b.isTranspose => executeStrmm(b.T,a.T,C, transposeC = true)
     case GPULeftTriangularMatrixMatrix(b: GPUMatrix, a: GPUTriangularMatrix) if !b.isTranspose => executeStrmm(b,a,C)
     case GPULeftTriangularMatrixMatrix(b: GPUMatrix, a: GPUTriangularMatrix) if b.isTranspose => executeStrmm(a.T,b.T,C, transposeC = true)
-    case GPUTriangularSolveMatrix(ainv: GPUInverseTriangularMatrix, b: GPUMatrix) => ???
-    case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) => ???
+    case GPUTriangularSolveMatrix(ainv: GPUInverseTriangularMatrix, b: GPUMatrix) if !b.isTranspose => executeStrsm(ainv,b,C)
+    case GPUTriangularSolveMatrix(ainv: GPUInverseTriangularMatrix, b: GPUMatrix) if b.isTranspose => executeStrsm(b.T,ainv.T,C, transposeC = true)
+    case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) if !b.isTranspose => executeStrsm(b,ainv,C)
+    case GPULeftTriangularSolveMatrix(b: GPUMatrix, ainv: GPUInverseTriangularMatrix) if b.isTranspose => executeStrsm(ainv.T,b.T,C, transposeC = true)
     case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
     case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
     case _ => throw new Exception("wrong matrix operation in =:")
@@ -190,6 +192,45 @@ class GPUMatrixResult(computation: GPUComputation) {
       alpha.ptr,
       a.ptr, a.leadingDimension,
       b.ptr, b.leadingDimension,
+      C.ptr, C.leadingDimension
+    ).checkJCublasStatus()
+
+    // return result
+    C.mutateConstant(None).mutateTranspose(transposeC)
+  }
+
+  private def executeStrsm(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false) = {
+    // prepare output
+    C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
+
+    // determine parameters and check for compatibility
+    val (a, b, side) = (M,N) match {
+      case (b: GPUMatrix, a: GPUInverseTriangularMatrix) =>
+        assert(b.numCols == a.size, s"mismatched matrix dimensions: got ${b.numCols} != ${a.size}")
+        assert(a.size == C.numCols, s"mismatched matrix dimensions: got ${a.size} != ${C.numCols}")
+        assert(b.numRows == C.numRows, s"mismatched matrix dimensions: got ${b.numRows} != ${C.numRows}")
+        (a, b, Right)
+      case (a: GPUInverseTriangularMatrix, b: GPUMatrix) =>
+        assert(a.size == b.numRows, s"mismatched matrix dimensions: got ${a.size} != ${b.numRows}")
+        assert(a.size == C.numRows, s"mismatched matrix dimensions: got ${a.size} != ${C.numRows}")
+        assert(b.numCols == C.numCols, s"mismatched matrix dimensions: got ${b.numCols} != ${C.numCols}")
+        (a, b, Left)
+    }
+
+    // determine constants
+    val alpha = b.constant.getOrElse(Waterfall.Constants.one)
+
+    // if not in-place, copy to output
+    if(!(b.ptr eq C.ptr)) b.copyTo(C)
+
+    // perform single-precision triangular matrix-matrix multiplication
+    cublasStrsm(Waterfall.cublasHandle,
+      side.toSideId, a.fillMode.toFillModeId,
+      a.isTranspose.toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      C.numRows, C.numCols,
+      alpha.ptr,
+      a.ptr, a.leadingDimension,
       C.ptr, C.leadingDimension
     ).checkJCublasStatus()
 
