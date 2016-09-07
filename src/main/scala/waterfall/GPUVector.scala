@@ -50,7 +50,7 @@ class GPUVector(ptr: Pointer,
   def *(that: GPUMatrix) = new GPUVectorResult(GPULeftGeneralMatrixVector(this, that))
   def *(that: GPUSymmetricMatrix) = new GPUVectorResult(GPULeftSymmetricMatrixVector(this, that))
   def *(that: GPUTriangularMatrix) = new GPUVectorResult(GPULeftTriangularMatrixVector(this, that))
-  def *(that: GPUInverseSymmetricMatrix) = new GPUVectorResult(GPULeftPositiveDefiniteTriangularSolve(this.asGPUMatrix, that))
+  def *(that: GPUInverseSymmetricMatrix) = new GPUVectorResult(GPULeftPositiveDefiniteTriangularSolveVector(this, that))
   def *(that: GPUInverseTriangularMatrix) = new GPUVectorResult(GPULeftTriangularSolveVector(this, that))
 
   // won't have desired order of operations - Scala limitation

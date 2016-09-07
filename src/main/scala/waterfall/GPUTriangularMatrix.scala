@@ -33,10 +33,11 @@ class GPUTriangularMatrix(ptr: Pointer,
     new GPUInverseTriangularMatrix(this, isTranspose)
   }
 
+  override def +(that: GPUMatrix) = throw new Exception("warning: the other side of a triangular matrix may contain garbage rather than zeros - if you really need addition, cast to GPUMatrix first")
   override def *(that: GPUMatrix) = new GPUMatrixResult(GPUTriangularMatrixMatrix(this, that))
+  override def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPUTriangularMatrixMatrix(this, that))
   override def *(that: GPUVector) = new GPUVectorResult(GPUTriangularMatrixVector(this, that))
 
   override def withConstant(that: GPUConstant) = super.withConstant(that).declareTriangular(fillMode)
   override def withoutConstant = super.withoutConstant.declareTriangular(fillMode)
 }
-

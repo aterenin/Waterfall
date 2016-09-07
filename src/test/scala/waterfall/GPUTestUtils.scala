@@ -56,14 +56,14 @@ object GPUTestUtils {
 
   val hostR = Array(
     Array(2.684178f,  0.07793054f,  1.0778745f),
-    Array(0.000000f, -0.91150070f,  0.6665087f),
-    Array(0.000000f,  0.00000000f, -1.1138668f)
+    Array(0.000000f,  0.91150070f, -0.6665087f),
+    Array(0.000000f,  0.00000000f,  1.1138668f)
   ).transpose // transpose to change to column major format
 
   val hostRinv = Array(
-    Array(0.3725535f,  0.03185219f,  0.3795747f),
-    Array(0.0000000f, -1.09709186f, -0.6564710f),
-    Array(0.0000000f,  0.00000000f, -0.8977734f)
+    Array(0.3725535f, -0.03185219f, -0.3795747f),
+    Array(0.0000000f,  1.09709186f,  0.6564710f),
+    Array(0.0000000f,  0.00000000f,  0.8977734f)
   ).transpose // transpose to change to column major format
 
   val hostV = Array(0.6998572f, -1.0195756f, 1.0799649f)
@@ -102,7 +102,7 @@ object GPUTestUtils {
 
   def testGPUEquality(A: GPUArray, B: Array[Float]) = {
     A.copyToHost.zip(B).foreach{
-      case (l, c) => l shouldEqual (c +- 0.0001f)
+      case (test, correct) => if(correct==correct) test shouldEqual (correct +- 0.0001f) // correct==correct is false for NaN
     }
   }
   def testGPUEquality(A: GPUMatrix, B: Array[Array[Float]]): Unit = {
@@ -116,21 +116,4 @@ object GPUTestUtils {
     A.isTranspose shouldEqual transpose
     testGPUEquality(A: GPUArray, B) // annotation needed to prevent infinite tail recursive loop
   }
-
-
-//  def testGPUTriangularEquality(A: GPUTriangularMatrix, B: Array[Float]) = {
-//    A.copyToHost.zip(B)
-//      .sliding(A.size)
-//      .toArray.zipWithIndex
-//      .flatMap{
-//        case (column, colIdx) =>
-//          column.zipWithIndex.map{
-//            case ((a, b), rowIdx) =>
-//              if(rowIdx >= colIdx) (a,b) else (0.0f, b)
-//          }
-//      }
-//      .foreach{
-//        case (l, c) => l shouldEqual (c +- 0.0001f)
-//      }
-//  }
 }

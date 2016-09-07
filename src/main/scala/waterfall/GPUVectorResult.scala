@@ -18,7 +18,8 @@
 package waterfall
 
 import jcuda.jcublas.JCublas2._
-import Implicits.{DebugImplicits, TransposeImplicits, FillModeImplicits}
+import Implicits.{DebugImplicits, FillModeImplicits, TransposeImplicits, DiagUnitImplicits}
+import jcuda.jcublas.JCublas2
 
 /**
   * A not-yet-evaluated result of a computation that yields a vector
@@ -34,12 +35,12 @@ class GPUVectorResult(computation: GPUComputation) {
     case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y, transposeY = true)  // Ax=y is equivalent to y^T = x^T A^T
     case GPUSymmetricMatrixVector(a: GPUSymmetricMatrix, x: GPUVector) => executeSsymv(a, x, y)
     case GPULeftSymmetricMatrixVector(xT: GPUVector, a: GPUSymmetricMatrix) => executeSsymv(a, xT, y, transposeY = true) // xA=y is equivalent to y^T = A x^T since A = A^T
-    case GPUTriangularMatrixVector(a: GPUTriangularMatrix, x: GPUVector) => ???
-    case GPULeftTriangularMatrixVector(x: GPUVector, a: GPUTriangularMatrix) => ???
-    case GPUTriangularSolveVector(ainv: GPUInverseTriangularMatrix, x: GPUVector) => ???
-    case GPULeftTriangularSolveVector(x: GPUVector, ainv: GPUInverseTriangularMatrix) => ???
-    case GPUPositiveDefiniteTriangularSolve(ainv: GPUInverseSymmetricMatrix, b: GPUMatrix) => ???
-    case GPULeftPositiveDefiniteTriangularSolve(b: GPUMatrix, ainv: GPUInverseSymmetricMatrix) => ???
+    case GPUTriangularMatrixVector(a: GPUTriangularMatrix, x: GPUVector) => executeStrmv(a, x, y)
+    case GPULeftTriangularMatrixVector(xT: GPUVector, a: GPUTriangularMatrix) => executeStrmv(a.T, xT, y, transposeY = true)
+    case GPUTriangularSolveVector(ainv: GPUInverseTriangularMatrix, x: GPUVector) => executeStrsv(ainv, x, y)
+    case GPULeftTriangularSolveVector(xT: GPUVector, ainv: GPUInverseTriangularMatrix) => executeStrsv(ainv.T, xT, y, transposeY = true)
+    case GPUPositiveDefiniteTriangularSolveVector(ainv: GPUInverseSymmetricMatrix, b: GPUVector) => ???
+    case GPULeftPositiveDefiniteTriangularSolveVector(b: GPUVector, ainv: GPUInverseSymmetricMatrix) => ???
     case _ => throw new Exception("wrong vector operation in =:")
   }
 
@@ -125,7 +126,7 @@ class GPUVectorResult(computation: GPUComputation) {
     y.mutateTranspose(false)
 
     // check for compatibility
-    assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.numCols} != ${x.length}")
+    assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.size} != ${x.length}")
     assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
     assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
     assert(A.constant.isEmpty || x.constant.isEmpty, s"unsupported: only one input constant can be defined")
@@ -142,6 +143,58 @@ class GPUVectorResult(computation: GPUComputation) {
       A.ptr, A.leadingDimension,
       x.ptr, x.stride,
       beta.ptr,
+      y.ptr, y.stride
+    ).checkJCublasStatus()
+
+    // return result
+    y.mutateConstant(None).mutateTranspose(transposeY)
+  }
+
+  private def executeStrmv(A: GPUTriangularMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
+    // prepare output
+    y.mutateConstant(None).mutateTranspose(false)
+
+    // check for compatibility
+    assert(A.size == x.length, s"mismatched matrix dimensions: got ${A.size} != ${x.length}")
+    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
+    assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
+    assert(A.constant.isEmpty && x.constant.isEmpty, s"unsupported: this operation cannot be performed with constants")
+
+    // if not in-place, copy to output
+    if(!(x.ptr eq y.ptr)) x.copyTo(y)
+
+    // perform single-precision triangular matrix-vector multiplication
+    cublasStrmv(Waterfall.cublasHandle,
+      A.fillMode.toFillModeId,
+      A.isTranspose.toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      A.size, A.ptr, A.leadingDimension,
+      y.ptr, y.stride
+    ).checkJCublasStatus()
+
+    // return result
+    y.mutateConstant(None).mutateTranspose(transposeY)
+  }
+
+  private def executeStrsv(Ainv: GPUInverseTriangularMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
+    // prepare output
+    y.mutateConstant(None).mutateTranspose(false)
+
+    // check for compatibility
+    assert(Ainv.size == x.length, s"mismatched matrix dimensions: got ${Ainv.size} != ${x.length}")
+    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
+    assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
+    assert(x.constant.isEmpty, s"unsupported: this operation cannot be performed with constants")
+
+    // if not in-place, copy to output
+    if(!(x.ptr eq y.ptr)) x.copyTo(y)
+
+    // perform single-precision triangular solve vector
+    cublasStrsv(Waterfall.cublasHandle,
+      Ainv.fillMode.toFillModeId,
+      Ainv.isTranspose.toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      Ainv.size, Ainv.ptr, Ainv.leadingDimension,
       y.ptr, y.stride
     ).checkJCublasStatus()
 

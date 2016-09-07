@@ -29,6 +29,6 @@ class GPUInverseSymmetricMatrix(val inv: GPUSymmetricMatrix
   val fillMode = inv.fillMode
   val underlyingCholesky = inv.chol
   def *(that: GPUMatrix) = new GPUMatrixResult(GPUPositiveDefiniteTriangularSolve(this, that))
-  def *(that: GPUVector) = new GPUVectorResult(GPUPositiveDefiniteTriangularSolve(this, that.asGPUMatrix))
+  def *(that: GPUVector) = new GPUVectorResult(GPUPositiveDefiniteTriangularSolveVector(this, that))
   val T = this
 }

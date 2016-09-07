@@ -18,7 +18,7 @@
 package waterfall
 
 import org.scalatest.{Assertions, FlatSpec, Matchers}
-import waterfall.MatrixProperties.createCholeskyWorkspace
+import waterfall.MatrixProperties.{createCholeskyWorkspace, checkDevInfo}
 
 class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   import GPUTestUtils._
@@ -70,8 +70,10 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
 
     R =: XtX.computeCholesky(ws)
 
+    checkDevInfo(ws.devInfo)
+
     R shouldEqual XtX.chol
-    testGPUEquality(R, hostR)
+    testGPUEquality(R, hostR.map(_.map(f => if(f == 0.0f) Float.NaN else f)))
   }
 
   "GPUInverseSymmetricMatrix" should "solve a linear system using provided Cholesky decomposition" in {

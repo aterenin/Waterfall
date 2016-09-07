@@ -18,9 +18,10 @@
 package waterfall
 
 import jcuda.jcusolver.JCusolverDn.cusolverDnSpotrf_bufferSize
-import jcuda.runtime.JCuda.cudaMalloc
+import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
 import jcuda.{Pointer, Sizeof}
-import Implicits.FillModeImplicits
+import Implicits.{FillModeImplicits, DebugImplicits}
+import jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost
 
 object MatrixProperties {
   sealed trait FillMode
@@ -47,5 +48,10 @@ object MatrixProperties {
 
     // return container with necessary pointers
     CholeskyWorkspace(workspace, workspaceSize.head, devInfo)
+  }
+  def checkDevInfo(devInfo: Pointer): Unit = {
+    val result = Array.ofDim[Int](1)
+    cudaMemcpy(Pointer.to(result), devInfo, Sizeof.FLOAT, cudaMemcpyDeviceToHost).checkJCudaStatus()
+    assert(result.head == 0, s"cuSOLVER devInfo was not zero, got ${result.head}")
   }
 }

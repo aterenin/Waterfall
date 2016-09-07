@@ -43,6 +43,9 @@ case class GPUPositiveDefiniteTriangularFactorize(A: GPUSymmetricMatrix, ws: Cho
 case class GPUPositiveDefiniteTriangularSolve(Ainv: GPUInverseSymmetricMatrix, B: GPUMatrix) extends GPUComputation
 case class GPULeftPositiveDefiniteTriangularSolve(B: GPUMatrix, Ainv: GPUInverseSymmetricMatrix) extends GPUComputation
 
+case class GPUPositiveDefiniteTriangularSolveVector(Ainv: GPUInverseSymmetricMatrix, x: GPUVector) extends GPUComputation
+case class GPULeftPositiveDefiniteTriangularSolveVector(x: GPUVector, Ainv: GPUInverseSymmetricMatrix) extends GPUComputation
+
 case class GPUSymmetricMatrixMatrix(A: GPUSymmetricMatrix, B: GPUMatrix) extends GPUComputation
 case class GPULeftSymmetricMatrixMatrix(B: GPUMatrix, A: GPUSymmetricMatrix) extends GPUComputation
 

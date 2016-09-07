@@ -58,7 +58,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
   private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
     // prepare output
-    C.mutateConstant(None).mutateTranspose(false)
+    C.mutateConstant(None).mutateTranspose(newTranspose = false)
 
     // check for compatibility
     assert(A.numRows == B.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${B.numRows}")
@@ -91,7 +91,7 @@ class GPUMatrixResult(computation: GPUComputation) {
   private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix, inplace: Boolean = false) = {
     // prepare output
     if(!inplace) C.mutateConstant(None) else if(C.constant.isEmpty) C.mutateConstant(Some(Waterfall.Constants.one))
-    C.mutateTranspose(false)
+    C.mutateTranspose(newTranspose = false)
 
     // check for compatibility
     assert(A.numRows == C.numRows, s"mismatched matrix dimensions: got ${A.numRows} != ${C.numRows}")
@@ -164,6 +164,7 @@ class GPUMatrixResult(computation: GPUComputation) {
 
     // prepare output
     if(!(A.ptr eq C.ptr)) C.mutateConstant(None) // don't invalidate constant check for A if performed in-place
+    C.mutateTranspose(newTranspose = false)
 
     // check for compatibility
     assert(A.size == C.size, s"mismatched matrix dimensions: got ${A.size} != ${C.size}")
@@ -185,6 +186,8 @@ class GPUMatrixResult(computation: GPUComputation) {
       ws.workspaceSize,
       ws.devInfo
     ).checkJCusolverStatus()
+
+    // TODO: zero out lower triangle after computation, else addition may behave strangely
 
     // TODO: check devInfo to ensure non-singularity - need to be careful here when using CUDA streams because devInfo won't be ready immediately
 

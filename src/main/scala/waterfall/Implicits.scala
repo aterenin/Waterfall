@@ -24,6 +24,7 @@ import jcuda.jcusolver.cusolverStatus.{stringFor => cusolverStatusStringFor, CUS
 import jcuda.jcublas.cublasOperation.{stringFor => _, CUBLAS_OP_N, CUBLAS_OP_T}
 import jcuda.jcublas.cublasFillMode.{stringFor => _, CUBLAS_FILL_MODE_LOWER, CUBLAS_FILL_MODE_UPPER}
 import jcuda.jcublas.cublasSideMode.{stringFor => _, CUBLAS_SIDE_LEFT, CUBLAS_SIDE_RIGHT}
+import jcuda.jcublas.cublasDiagType.{stringFor => _, CUBLAS_DIAG_NON_UNIT, CUBLAS_DIAG_UNIT}
 import MatrixProperties.{FillMode, Lower, Upper, Side, Left, Right}
 
 object Implicits {
@@ -48,6 +49,13 @@ object Implicits {
     def toFillModeId = fm match{
       case Lower => CUBLAS_FILL_MODE_LOWER
       case Upper => CUBLAS_FILL_MODE_UPPER
+    }
+  }
+
+  implicit class DiagUnitImplicits(b: Boolean) {
+    def toDiagUnitId = b match {
+      case false => CUBLAS_DIAG_NON_UNIT
+      case true => CUBLAS_DIAG_UNIT
     }
   }
 

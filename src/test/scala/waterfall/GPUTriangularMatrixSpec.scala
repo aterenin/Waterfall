@@ -43,14 +43,13 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   it should "perform matrix-vector multiplication" in {
-    cancel()
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
     val v = GPUVector.createFromArray(hostV)
     val Rv = GPUVector.create(v.length)
     val vtRt = GPUVector.create(v.length)
 
     Rv =: R * v
-    vtRt =: v * R.T
+    vtRt =: v.T * R.T
 
     testGPUEquality(Rv, hostRv)
     testGPUEquality(vtRt, hostvtRt, transpose = true)
@@ -59,7 +58,6 @@ class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   "GPUInverseTriangularMatrix" should "solve a triangular system" in {
-    cancel()
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
     val v = GPUVector.createFromArray(hostV)
     val RinvV = GPUVector.create(v.length)

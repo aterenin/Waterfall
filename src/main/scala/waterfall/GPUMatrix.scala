@@ -23,7 +23,7 @@ import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
 import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
-import MatrixProperties.{FillMode, Lower}
+import MatrixProperties.{FillMode, Upper}
 
 /**
   * A GPU matrix
@@ -74,16 +74,16 @@ class GPUMatrix(ptr: Pointer,
     new GPUVector(ptr, numRows, iIsTranspose = true, iConstant = constant)
   }
   def asGPUVector = if(numCols == 1) asColumnVector else if(numRows == 1) asRowVector else
-    throw new Exception(s"unsupported: tried to express matrix as vector, but neither numRows and numCols are equal to 1")
+    throw new Exception(s"unsupported: tried to express matrix as vector, but neither numRows nor numCols are equal to 1")
 
   def withConstant(that: GPUConstant) = new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = Option(that))
   def withoutConstant = if(constant.nonEmpty) new GPUMatrix(ptr, numRows, numCols, isTranspose, iConstant = None) else this
 
-  def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, fillMode = Lower, constant)
-  def declareSymmetric(fillMode: FillMode) = new GPUSymmetricMatrix(ptr, numCols, fillMode, constant)
+  def declareSymmetric = new GPUSymmetricMatrix(ptr, numRows, fillMode = Upper, constant)
+  def declareSymmetric(fillMode: FillMode) = new GPUSymmetricMatrix(ptr, numRows, fillMode, constant)
 
-  def declareTriangular = new GPUTriangularMatrix(ptr, numRows, fillMode = Lower, isTranspose, constant)
-  def declareTriangular(fillMode: FillMode) = new GPUTriangularMatrix(ptr, numCols, fillMode, isTranspose, constant)
+  def declareTriangular = new GPUTriangularMatrix(ptr, numRows, fillMode = Upper, isTranspose, constant)
+  def declareTriangular(fillMode: FillMode) = new GPUTriangularMatrix(ptr, numRows, fillMode, isTranspose, constant)
 }
 
 object GPUMatrix {
