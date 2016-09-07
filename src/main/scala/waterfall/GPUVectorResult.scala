@@ -39,8 +39,8 @@ class GPUVectorResult(computation: GPUComputation) {
     case GPULeftTriangularMatrixVector(xT: GPUVector, a: GPUTriangularMatrix) => executeStrmv(a.T, xT, y, transposeY = true)
     case GPUTriangularSolveVector(ainv: GPUInverseTriangularMatrix, x: GPUVector) => executeStrsv(ainv, x, y)
     case GPULeftTriangularSolveVector(xT: GPUVector, ainv: GPUInverseTriangularMatrix) => executeStrsv(ainv.T, xT, y, transposeY = true)
-    case GPUPositiveDefiniteTriangularSolveVector(ainv: GPUInverseSymmetricMatrix, b: GPUVector) => ???
-    case GPULeftPositiveDefiniteTriangularSolveVector(b: GPUVector, ainv: GPUInverseSymmetricMatrix) => ???
+    case GPUPositiveDefiniteTriangularSolveVector(ainv: GPUInverseSymmetricMatrix, x: GPUVector) => executeSpotrs(ainv, x, y)
+    case GPULeftPositiveDefiniteTriangularSolveVector(xT: GPUVector, ainv: GPUInverseSymmetricMatrix) => executeSpotrs(ainv, xT, y, transposeY = true)
     case _ => throw new Exception("wrong vector operation in =:")
   }
 
@@ -195,6 +195,45 @@ class GPUVectorResult(computation: GPUComputation) {
       Ainv.isTranspose.toTransposeOpId,
       false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
       Ainv.size, Ainv.ptr, Ainv.leadingDimension,
+      y.ptr, y.stride
+    ).checkJCublasStatus()
+
+    // return result
+    y.mutateConstant(None).mutateTranspose(transposeY)
+  }
+
+
+  private def executeSpotrs(Ainv: GPUInverseSymmetricMatrix, x: GPUVector, y: GPUVector, transposeY: Boolean = false) = {
+    // prepare output
+    y.mutateConstant(None).mutateTranspose(false)
+
+    // check for compatibility
+    assert(Ainv.size == x.length, s"mismatched matrix dimensions: got ${Ainv.size} != ${x.length}")
+    assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
+    assert(x.isTranspose == transposeY, s"mismatched vector dimensions: incorrect row/column vector")
+    assert(x.constant.isEmpty, s"unsupported: this operation cannot be performed with constants")
+
+    // get cholesky
+    val R = Ainv.underlyingCholesky
+
+    // if not in-place, copy to output
+    if(!(x.ptr eq y.ptr)) x.copyTo(y)
+
+    // perform single-precision triangular solve vector, first one on transpose of Cholesky
+    cublasStrsv(Waterfall.cublasHandle,
+      R.fillMode.toFillModeId,
+      (!R.isTranspose).toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      R.size, R.ptr, R.leadingDimension,
+      y.ptr, y.stride
+    ).checkJCublasStatus()
+
+    // perform single-precision triangular solve vector, second one not on transpose of Cholesky
+    cublasStrsv(Waterfall.cublasHandle,
+      R.fillMode.toFillModeId,
+      R.isTranspose.toTransposeOpId,
+      false.toDiagUnitId, // Waterfall doesn't track triangular matrices with unit diagonals, so assume that is false
+      R.size, R.ptr, R.leadingDimension,
       y.ptr, y.stride
     ).checkJCublasStatus()
 

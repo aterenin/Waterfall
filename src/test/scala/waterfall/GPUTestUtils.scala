@@ -35,7 +35,7 @@ object GPUTestUtils {
           aRow =>
             B.map{
               bCol =>
-                aRow.zip(bCol).map{case (a,b) => a*b}.sum
+                aRow.zip(bCol).map{case (x,y) => x*y}.sum
             }
         }
         .transpose

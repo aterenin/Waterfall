@@ -77,7 +77,6 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   }
 
   "GPUInverseSymmetricMatrix" should "solve a linear system using provided Cholesky decomposition" in {
-    cancel()
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val v = GPUVector.createFromArray(hostV)
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
@@ -100,19 +99,26 @@ class GPUSymmetricMatrixSpec extends FlatSpec with Assertions with Matchers {
   it should "solve a matrix equation using provided Cholesky decomposition" in {
     cancel()
     val X = GPUMatrix.createFromColumnMajorArray(hostX)
+    val XT = GPUMatrix.createFromColumnMajorArray(hostX.transpose)
     val XtX = GPUMatrix.createFromColumnMajorArray(hostXtX).declareSymmetric
     val R = GPUMatrix.createFromColumnMajorArray(hostR).declareTriangular
     val ws = createCholeskyWorkspace(XtX)
     val XXtXinv = GPUMatrix.create(hostXnumRows, hostXnumCols)
+    val XXtXinv2 = GPUMatrix.create(hostXnumRows, hostXnumCols)
     val XtXinvXt = GPUMatrix.create(hostXnumCols, hostXnumRows)
+    val XtXinvXt2 = GPUMatrix.create(hostXnumCols, hostXnumRows)
 
     XtX.attachCholesky(R, ws)
 
     XXtXinv =: X * XtX.inv
+    XXtXinv2 =: XT.T * XtX.inv
     XtXinvXt =: XtX.inv * X.T
+    XtXinvXt =: XtX.inv * XT
 
     testGPUEquality(XXtXinv, hostXXtXinv)
+    testGPUEquality(XXtXinv2, hostXXtXinv)
     testGPUEquality(XtXinvXt, hostXtXinvXt)
+    testGPUEquality(XtXinvXt2, hostXtXinvXt)
     testGPUEquality(X, hostX)
     testGPUEquality(XtX, hostXtX)
     testGPUEquality(R, hostR)

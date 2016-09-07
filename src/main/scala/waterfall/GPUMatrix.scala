@@ -56,6 +56,7 @@ class GPUMatrix(ptr: Pointer,
     }; this }
 
   def +(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralAddMatrix(this, that))
+  def +(that: GPUTriangularMatrix) = throw new Exception("warning: the other side of a triangular matrix may contain garbage rather than zeros - if you really need addition, cast to GPUMatrix first")
   def *(that: GPUMatrix) = new GPUMatrixResult(GPUGeneralMatrixMatrix(this, that))
   def *(that: GPUVector) = new GPUVectorResult(GPUGeneralMatrixVector(this, that))
   def *(that: GPUSymmetricMatrix) = new GPUMatrixResult(GPULeftSymmetricMatrixMatrix(this, that))
