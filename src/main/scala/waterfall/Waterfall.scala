@@ -25,9 +25,6 @@ import jcuda.jcurand.curandGenerator
 import jcuda.jcurand.curandRngType.CURAND_RNG_PSEUDO_PHILOX4_32_10
 import jcuda.jcusolver.JCusolverDn.cusolverDnCreate
 import jcuda.jcusolver.cusolverDnHandle
-import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
-import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyHostToDevice}
-import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
 
 /**
@@ -61,11 +58,5 @@ object Waterfall {
     lazy val one = GPUConstant.create(1.0f)
     lazy val zero = GPUConstant.create(0.0f)
     lazy val minusOne = GPUConstant.create(-1.0f)
-  }
-
-  object SizeOf {
-    val sizeOfCurandStateXORWOW = 48L //somehow, nowhere to be found in JCuda
-    val sizeOfCurandStatePhilox4_32_10_t = 64L
-    val sizeOfCurandStateMRG32k3a = 72L
   }
 }

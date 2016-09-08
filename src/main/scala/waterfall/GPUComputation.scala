@@ -63,3 +63,6 @@ case class GPULeftTriangularSolveMatrix(B: GPUMatrix, Ainv: GPUInverseTriangular
 
 case class GPUTriangularSolveVector(Ainv: GPUInverseTriangularMatrix, b: GPUVector) extends GPUComputation
 case class GPULeftTriangularSolveVector(b: GPUVector, Ainv: GPUInverseTriangularMatrix) extends GPUComputation
+
+case class GPUGenerateNormal(mu: Float, sigmasq: Float) extends GPUComputation
+case object GPUGenerateUniform extends GPUComputation
