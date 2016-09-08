@@ -62,4 +62,10 @@ object Waterfall {
     lazy val zero = GPUConstant.create(0.0f)
     lazy val minusOne = GPUConstant.create(-1.0f)
   }
+
+  object SizeOf {
+    val sizeOfCurandStateXORWOW = 48L //somehow, nowhere to be found in JCuda
+    val sizeOfCurandStatePhilox4_32_10_t = 64L
+    val sizeOfCurandStateMRG32k3a = 72L
+  }
 }
