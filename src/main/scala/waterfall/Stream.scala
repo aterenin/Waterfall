@@ -23,7 +23,7 @@ import jcuda.runtime.JCuda.{cudaStreamCreate, cudaStreamSynchronize}
 import Implicits.DebugImplicits
 
 object Stream {
-  val default = GPUStream(null, null)
+  val default = create
 
   def create = {
     val cudaStream_t = new cudaStream_t

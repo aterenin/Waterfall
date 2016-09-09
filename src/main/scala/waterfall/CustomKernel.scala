@@ -41,6 +41,7 @@ class CustomKernel(module: CUmodule, function: CUfunction,
       .withArgs(args:_*)
       .execute()
   }
+  def apply(args: Any*) = withArgs(args:_*).execute()
 
 
   def withArgs(args: Any*) = {

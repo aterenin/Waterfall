@@ -17,6 +17,7 @@
 
 package waterfall
 
+import jcuda.runtime.JCuda.cudaMemGetInfo
 import jcuda.jcublas.JCublas2.{cublasCreate, cublasSetPointerMode}
 import jcuda.jcublas.cublasHandle
 import jcuda.jcublas.cublasPointerMode.CUBLAS_POINTER_MODE_DEVICE
@@ -53,6 +54,12 @@ object Waterfall {
 
     initialized = true
   } else throw new Exception("Waterfall.init() called, but was already previously initialized")
+
+  def printMemInfo(): Unit = {
+    val cudaMemInfo = (Array(0L), Array(0L))
+    cudaMemGetInfo(cudaMemInfo._1, cudaMemInfo._2).checkJCudaStatus()
+    println(s"available memory ${cudaMemInfo._1.head}, total memory ${cudaMemInfo._2.head}")
+  }
 
   object Constants {
     lazy val one = GPUConstant.create(1.0f)
