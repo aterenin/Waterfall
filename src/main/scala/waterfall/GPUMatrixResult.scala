@@ -18,9 +18,10 @@
 package waterfall
 
 import jcuda.jcublas.JCublas2._
-import jcuda.jcusolver.JCusolverDn.{cusolverDnSpotrf}
-import Implicits.{DebugImplicits, FillModeImplicits, SideImplicits, TransposeImplicits, DiagUnitImplicits}
+import jcuda.jcusolver.JCusolverDn.{cusolverDnSetStream, cusolverDnSpotrf}
+import Implicits.{DebugImplicits, DiagUnitImplicits, FillModeImplicits, SideImplicits, TransposeImplicits}
 import MatrixProperties.{CholeskyWorkspace, Left, Right}
+import waterfall.Stream.GPUStream
 
 /**
   * A not-yet-evaluated result of a computation that yields a matrix
@@ -62,7 +63,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     case _ => throw new Exception("unsupported: cannot execute given matrix operation in-place in +=:")
   }
 
-  private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix) = {
+  private def executeSgeam(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     C.mutateConstant(None).mutateTranspose(newTranspose = false)
 
@@ -79,6 +80,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     val alpha = A.constant.getOrElse(Waterfall.Constants.one)
     val beta = B.constant.getOrElse(Waterfall.Constants.one)
 
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
+
     // perform single-precision general matrix-matrix addition
     cublasSgeam(Waterfall.cublasHandle,
       A.isTranspose.toTransposeOpId, B.isTranspose.toTransposeOpId,
@@ -94,7 +98,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None)
   }
 
-  private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix, inplace: Boolean = false) = {
+  private def executeSgemm(A: GPUMatrix, B: GPUMatrix, C: GPUMatrix, inplace: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     if(!inplace) C.mutateConstant(None) else if(C.constant.isEmpty) C.mutateConstant(Some(Waterfall.Constants.one))
     C.mutateTranspose(newTranspose = false)
@@ -108,6 +112,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     // determine constants
     val alpha = A.constant.getOrElse(B.constant.getOrElse(Waterfall.Constants.one))
     val beta = C.constant.getOrElse(Waterfall.Constants.zero)
+
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
 
     // perform single-precision general matrix-matrix multiplication
     cublasSgemm(Waterfall.cublasHandle,
@@ -124,7 +131,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None)
   }
 
-  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, inplace: Boolean = false, transposeC: Boolean = false) = {
+  private def executeSsymm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, inplace: Boolean = false, transposeC: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     if(!inplace) C.mutateConstant(None) else if(C.constant.isEmpty) C.mutateConstant(Some(Waterfall.Constants.one))
     C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
@@ -148,6 +155,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     val alpha = a.constant.getOrElse(b.constant.getOrElse(Waterfall.Constants.one))
     val beta = C.constant.getOrElse(Waterfall.Constants.zero)
 
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
+
     // perform single-precision symmetric matrix-matrix multiplication
     cublasSsymm(Waterfall.cublasHandle,
       side.toSideId, a.fillMode.toFillModeId,
@@ -163,7 +173,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None).mutateTranspose(transposeC)
   }
 
-  private def executeStrmm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, transposeC: Boolean = false) = {
+  private def executeStrmm(M: GPUMatrix, N: GPUMatrix, C: GPUMatrix, transposeC: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
 
@@ -185,6 +195,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     // determine constants
     val alpha = a.constant.getOrElse(b.constant.getOrElse(Waterfall.Constants.one))
 
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
+
     // perform single-precision triangular matrix-matrix multiplication
     cublasStrmm(Waterfall.cublasHandle,
       side.toSideId, a.fillMode.toFillModeId,
@@ -201,7 +214,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None).mutateTranspose(transposeC)
   }
 
-  private def executeStrsm(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false) = {
+  private def executeStrsm(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
 
@@ -225,6 +238,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     // if not in-place, copy to output
     if(!(b.ptr eq C.ptr)) b.copyTo(C)
 
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
+
     // perform single-precision triangular matrix-matrix multiplication
     cublasStrsm(Waterfall.cublasHandle,
       side.toSideId, a.fillMode.toFillModeId,
@@ -240,7 +256,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None).mutateTranspose(transposeC)
   }
 
-  private def executeSpotrs(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false) = {
+  private def executeSpotrs(M: GPUArray, N: GPUArray, C: GPUMatrix, transposeC: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     // prepare output
     C.mutateTranspose(transposeC).mutateTranspose(newTranspose = false, flagOnly = true)
 
@@ -269,6 +285,9 @@ class GPUMatrixResult(computation: GPUComputation) {
     // if not in-place, copy to output
     if(!(b.ptr eq C.ptr)) b.copyTo(C)
 
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
+
     // perform single-precision triangular solve matrix, first one on transpose of Cholesky
     cublasStrsm(Waterfall.cublasHandle,
       side.toSideId, R.fillMode.toFillModeId,
@@ -295,7 +314,7 @@ class GPUMatrixResult(computation: GPUComputation) {
     C.mutateConstant(None).mutateTranspose(transposeC)
   }
 
-  private def executeSpotrf(A: GPUSymmetricMatrix, uncheckedC: GPUMatrix, ws: CholeskyWorkspace) = {
+  private def executeSpotrf(A: GPUSymmetricMatrix, uncheckedC: GPUMatrix, ws: CholeskyWorkspace)(implicit stream: GPUStream = Stream.default) = {
     // check if output has been properly declared triangular
     assert(uncheckedC.isInstanceOf[GPUTriangularMatrix], s"unsupported: output of Cholesky factorization needs to be declared triangular")
     val C = uncheckedC.asInstanceOf[GPUTriangularMatrix]
@@ -314,6 +333,9 @@ class GPUMatrixResult(computation: GPUComputation) {
       A.copyTo(C)
       A.attachCholesky(C, ws)
     }
+
+    // set stream
+    cusolverDnSetStream(Waterfall.cusolverDnHandle, stream.cudaStream_t).checkJCusolverStatus()
 
     // perform single-precision positive definite triangular factorization
     cusolverDnSpotrf(Waterfall.cusolverDnHandle,

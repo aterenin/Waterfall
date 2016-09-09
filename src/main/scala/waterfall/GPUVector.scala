@@ -19,10 +19,11 @@ package waterfall
 
 import java.nio.FloatBuffer
 
-import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
-import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
+import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpyAsync}
+import jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
+import waterfall.Stream.GPUStream
 
 /**
   * A GPU matrix
@@ -76,14 +77,12 @@ object GPUVector {
   }
 
 
-  def createFromArray(data: Array[Float]) = {
+  def createFromArray(data: Array[Float], async: Boolean = false)(implicit stream: GPUStream = Stream.default) = {
     val M = create(data.length)
-    cudaMemcpy(M.ptr, Pointer.to(data), M.numBytes, cudaMemcpyHostToDevice).checkJCudaStatus()
+    cudaMemcpyAsync(M.ptr, Pointer.to(data), M.numBytes, cudaMemcpyHostToDevice, stream.cudaStream_t).checkJCudaStatus()
+    if(!async) stream.synchronize()
     M
   }
 
-  def createFromBuffer(data: FloatBuffer, numRows: Int, numCols: Int) = {
-
-  }
-
+  def createFromBuffer(data: FloatBuffer, numRows: Int, numCols: Int)(implicit stream: GPUStream = Stream.default) = ???
 }

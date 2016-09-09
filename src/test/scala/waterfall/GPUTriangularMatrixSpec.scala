@@ -18,7 +18,6 @@
 package waterfall
 
 import org.scalatest.{Assertions, FlatSpec, Matchers}
-import waterfall.MatrixProperties.createCholeskyWorkspace
 
 class GPUTriangularMatrixSpec extends FlatSpec with Assertions with Matchers {
   import GPUTestUtils._

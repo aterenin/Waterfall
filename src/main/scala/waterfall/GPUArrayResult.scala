@@ -18,7 +18,8 @@
 package waterfall
 
 import Implicits.DebugImplicits
-import jcuda.jcurand.JCurand.{curandGenerateNormal, curandGenerateUniform}
+import jcuda.jcurand.JCurand.{curandGenerateNormal, curandGenerateUniform, curandSetStream}
+import waterfall.Stream.GPUStream
 
 /**
   * A not-yet-evaluated result of a computation that yields an array
@@ -34,8 +35,11 @@ class GPUArrayResult(computation: GPUComputation) {
     case _ => throw new Exception("wrong array operation in =:")
   }
 
-  private def executeGenerateNormal(a: GPUArray, mu: Float, sigma: Float) = {
+  private def executeGenerateNormal(a: GPUArray, mu: Float, sigma: Float)(implicit stream: GPUStream = Stream.default) = {
     assert(a.numElements % 2 == 0, s"unsupported: for some reason, cuRAND can only generate normals for arrays with an even number of elements - try padding your array by 1 and ignoring the last element")
+
+    curandSetStream(Waterfall.curandGenerator, stream.cudaStream_t).checkJCurandStatus()
+
     curandGenerateNormal(Waterfall.curandGenerator,
       a.ptr, a.numElements,
       mu, sigma
@@ -43,7 +47,9 @@ class GPUArrayResult(computation: GPUComputation) {
     a
   }
 
-  private def executeGenerateUniform(a: GPUArray) = {
+  private def executeGenerateUniform(a: GPUArray)(implicit stream: GPUStream = Stream.default) = {
+    curandSetStream(Waterfall.curandGenerator, stream.cudaStream_t).checkJCurandStatus()
+
     curandGenerateUniform(Waterfall.curandGenerator,
       a.ptr, a.numElements
     ).checkJCurandStatus()

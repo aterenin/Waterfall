@@ -17,12 +17,12 @@
 
 package waterfall
 
-import java.nio.FloatBuffer
 
-import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpy}
-import jcuda.runtime.cudaMemcpyKind.{cudaMemcpyDeviceToDevice, cudaMemcpyDeviceToHost, cudaMemcpyHostToDevice}
+import jcuda.runtime.JCuda.{cudaMalloc, cudaMemcpyAsync}
+import jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
+import waterfall.Stream.GPUStream
 
 /**
   * A GPU constant
@@ -37,10 +37,11 @@ class GPUConstant(ptr: Pointer) extends GPUArray(ptr, 1L) {
 }
 
 object GPUConstant {
-  def create(v: Float): GPUConstant = {
+  def create(v: Float)(implicit stream: GPUStream = Stream.default): GPUConstant = {
     val ptr = new Pointer
     cudaMalloc(ptr, Sizeof.FLOAT).checkJCudaStatus()
-    cudaMemcpy(ptr, Pointer.to(Array(v)), Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
+    cudaMemcpyAsync(ptr, Pointer.to(Array(v)), Sizeof.FLOAT, cudaMemcpyHostToDevice, stream.cudaStream_t).checkJCudaStatus()
+    stream.synchronize()
     new GPUConstant(ptr)
   }
 }

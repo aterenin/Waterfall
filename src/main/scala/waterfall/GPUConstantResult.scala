@@ -18,8 +18,8 @@
 package waterfall
 
 import jcuda.jcublas.JCublas2._
-import Implicits.TransposeImplicits
 import Implicits.DebugImplicits
+import waterfall.Stream.GPUStream
 
 /**
   * A not-yet-evaluated result of a computation that yields a constant
@@ -37,11 +37,14 @@ class GPUConstantResult(computation: GPUComputation) {
     case _ => throw new Exception("wrong constant operation in execute()")
   }
 
-  private def executeSdot(x: GPUVector, y: GPUVector, c: GPUConstant) = {
+  private def executeSdot(x: GPUVector, y: GPUVector, c: GPUConstant)(implicit stream: GPUStream = Stream.default) = {
     // check for compatibility
     assert(x.length == y.length, s"mismatched vector dimensions: got ${x.length} != ${y.length}")
     assert(x.isTranspose == y.isTranspose, s"mismatched vector dimensions: tried to dot row vector with column vector")
     assert(x.constant.isEmpty && y.constant.isEmpty, s"unsupported: input must not have constants")
+
+    // set stream
+    cublasSetStream(Waterfall.cublasHandle, stream.cudaStream_t).checkJCublasStatus()
 
     // perform dot product
     cublasSdot(Waterfall.cublasHandle,

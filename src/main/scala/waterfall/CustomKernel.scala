@@ -22,6 +22,7 @@ import jcuda.{NativePointerObject, Pointer}
 import jcuda.driver.{CUfunction, CUmodule}
 import jcuda.driver.JCudaDriver.{cuLaunchKernel, cuModuleGetFunction, cuModuleLoad}
 import Implicits.DebugImplicits
+import waterfall.Stream.GPUStream
 
 class CustomKernel(module: CUmodule, function: CUfunction,
                    args: Option[Pointer] = None,
@@ -68,9 +69,10 @@ class CustomKernel(module: CUmodule, function: CUfunction,
 
   def withExtra(extra: Pointer) = updated(extra = Some(extra))
 
-  def execute(): Unit = {
+  def execute()(implicit stream: GPUStream = Stream.default): Unit = {
     val (gX, gY, gZ, bX, bY, bZ) = launchConfiguration.getOrElse(throw new Exception(s"unsupported: tried to launch custom kernel without setting launch configuration"))
-    cuLaunchKernel(function, gX, gY, gZ, bX, bY, bZ,sharedMemBytes.getOrElse(0),null,args.orNull,extra.orNull).checkJCudaStatus()
+    cuLaunchKernel(function, gX, gY, gZ, bX, bY, bZ,sharedMemBytes.getOrElse(0),stream.CUstream,args.orNull,extra.orNull).checkJCudaStatus()
+
   }
 
   private def updated(module: CUmodule = module, function: CUfunction = function,

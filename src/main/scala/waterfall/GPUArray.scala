@@ -17,10 +17,11 @@
 
 package waterfall
 
-import jcuda.runtime.JCuda.cudaMemcpy
+import jcuda.runtime.JCuda.cudaMemcpyAsync
 import jcuda.runtime.cudaMemcpyKind._
 import jcuda.{Pointer, Sizeof}
 import Implicits.DebugImplicits
+import waterfall.Stream.GPUStream
 
 /**
   * A GPU array
@@ -34,19 +35,22 @@ class GPUArray(val ptr: Pointer,
               ) {
   val numBytes = numElements * Sizeof.FLOAT.toLong
 
-  def copyTo(that: GPUArray) = {
+  def copyTo(that: GPUArray)(implicit stream: GPUStream = Stream.default) = {
     assert(this.numElements == that.numElements, "tried to copy into array of non-matching length")
-    cudaMemcpy(that.ptr, ptr, numBytes, cudaMemcpyDeviceToDevice).checkJCudaStatus()
+    cudaMemcpyAsync(that.ptr, ptr, numBytes, cudaMemcpyDeviceToDevice, stream.cudaStream_t).checkJCudaStatus()
   }
 
-  def copyToHost: Array[Float] = {
+  def copyToHost: Array[Float] = copyToHost()
+  def copyToHost(async: Boolean = false)(implicit stream: GPUStream = Stream.default): Array[Float] = {
     assert(numElements < Int.MaxValue, "array too big to store on host, length > Int.MaxValue")
     val result = Array.ofDim[Float](numElements.toInt)
-    cudaMemcpy(Pointer.to(result), ptr, numBytes, cudaMemcpyDeviceToHost).checkJCudaStatus()
+    cudaMemcpyAsync(Pointer.to(result), ptr, numBytes, cudaMemcpyDeviceToHost, stream.cudaStream_t).checkJCudaStatus()
+    if(!async) stream.synchronize()
     result
   }
 
-  def copyToHostBuffer(b: java.nio.FloatBuffer): Unit = {
-    cudaMemcpy(Pointer.toBuffer(b), ptr, numBytes, cudaMemcpyDeviceToHost).checkJCudaStatus()
+  def copyToHostBuffer(b: java.nio.FloatBuffer, async: Boolean = false)(implicit stream: GPUStream = Stream.default): Unit = {
+    cudaMemcpyAsync(Pointer.toBuffer(b), ptr, numBytes, cudaMemcpyDeviceToHost, stream.cudaStream_t).checkJCudaStatus()
+    if(!async) stream.synchronize()
   }
 }
