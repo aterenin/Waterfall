@@ -18,10 +18,11 @@
 package waterfall
 
 import java.nio.Buffer
-import jcuda.{NativePointerObject, Pointer}
+import jcuda.Pointer
 import jcuda.driver.{CUfunction, CUmodule}
 import jcuda.driver.JCudaDriver.{cuLaunchKernel, cuModuleGetFunction, cuModuleLoad}
 import Implicits.DebugImplicits
+import waterfall.Random.GPURNGState
 import waterfall.Stream.GPUStream
 
 class CustomKernel(module: CUmodule, function: CUfunction,
@@ -45,9 +46,11 @@ class CustomKernel(module: CUmodule, function: CUfunction,
 
 
   def withArgs(args: Any*) = {
-    val argPointer = args.map{
-      case p: Pointer => p
-      case g: GPUArray => g.ptr
+    // CUDA kernel arguments take the form Pointer.to( Pointer.to(g1), Pointer.to(h2) ) where g1 is a pointer to the GPU, and h2 is a pointer (or Java object) on the host
+    val argPointerSeq = args.map{
+      case p: Pointer => Pointer.to(p)
+      case g: GPUArray => Pointer.to(g.ptr)
+      case r: GPURNGState => Pointer.to(r.ptr)
       case h1: Array[Byte] => Pointer.to(h1)
       case h2: Array[Char] => Pointer.to(h2)
       case h3: Array[Short] => Pointer.to(h3)
@@ -56,10 +59,9 @@ class CustomKernel(module: CUmodule, function: CUfunction,
       case h6: Array[Long] => Pointer.to(h6)
       case h7: Array[Double] => Pointer.to(h7)
       case b: Buffer => Pointer.toBuffer(b)
-      case n: NativePointerObject => Pointer.to(n)
       case e => throw new Exception(s"unsupported: cannot create pointer for kernel argument $e")
     }
-    updated(args = Some(Pointer.to(argPointer:_*)))
+    updated(args = Some(Pointer.to(argPointerSeq:_*)))
   }
 
   def withLaunchConfiguration(gridX: Int, blockX: Int): CustomKernel = withLaunchConfiguration(gridX,1,1,blockX,1,1)
