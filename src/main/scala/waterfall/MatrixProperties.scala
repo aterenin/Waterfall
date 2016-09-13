@@ -39,7 +39,7 @@ object MatrixProperties {
     val workspaceSize = Array.ofDim[Int](1)
     cusolverDnSpotrf_bufferSize(Waterfall.cusolverDnHandle,
       A.fillMode.toFillModeId, A.size, A.ptr, A.leadingDimension,
-      workspaceSize)
+      workspaceSize).checkJCusolverStatus()
 
     // allocate workspace
     val workspace = new Pointer

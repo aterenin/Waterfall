@@ -2,6 +2,8 @@ package waterfall.examples
 
 import java.io.{BufferedWriter, FileOutputStream, OutputStreamWriter}
 
+import jcuda.jcublas.cublasFillMode._
+import jcuda.jcusolver.JCusolverDn._
 import jcuda.runtime.JCuda._
 import jcuda.runtime.cudaMemcpyKind._
 import jcuda.{Pointer, Sizeof}
@@ -9,6 +11,7 @@ import waterfall.Implicits.DebugImplicits
 import waterfall.Random.PhiloxState
 import waterfall.Stream.GPUStream
 import waterfall._
+
 import scala.collection.mutable
 
 object Horseshoe extends App {
@@ -50,17 +53,16 @@ object Horseshoe extends App {
   }
 
   // create variables
-  val z = GPUVector.create(n)
-  val beta = GPUVector.create(p)
+  val z = GPUVector.createFromArray(Array.fill(n)(0.0f))
+  val beta = GPUVector.createFromArray(Array.fill(p)(0.0f))
   val data = genData(beta, z)
   val y = data._1
   val X = data._2
 
-  val lambdaSqInv = GPUVector.create(p)
-  val nuInv = GPUVector.create(p)
-  val xiInv = GPUVector.create(p)
-  val tauSqInv = GPUVector.create(p)
-  val tauSqInvC = new GPUConstant(tauSqInv.ptr) // HACK: use first element to store dot product
+  val lambdaSqInv = GPUVector.createFromArray(Array.fill(p)(1.0f))
+  val nuInv = GPUVector.createFromArray(Array.fill(p)(1.0f))
+  val xiInv = GPUConstant.create(1.0f)
+  val tauSqInv = GPUConstant.create(1.0f)
   val tauSqInvShape = GPUConstant.create((p.toFloat + 1.0f) / 2.0f)
 
   val XtX = GPUMatrix.create(p,p).declareSymmetric
@@ -70,7 +72,7 @@ object Horseshoe extends App {
   val mu = GPUVector.create(p)
   val betaSqScratch = GPUVector.create(p)
 
-  val ws = MatrixProperties.createCholeskyWorkspace(XtX)
+  val ws = MatrixProperties.createCholeskyWorkspace(Sigma)
   val rngStateZ = Random.allocateDeviceRNGState(PhiloxState)
   val rngStateTau = Random.allocateDeviceRNGState(PhiloxState)
   val rngInit = CustomKernelFile("cuRANDINIT.ptx").loadCustomKernel("cuda_rand_init")
@@ -196,7 +198,7 @@ object Horseshoe extends App {
     val (gridSizeX,blockSizeX) = getDefaultLaunchConfiguration(p)
 
     squareBeta(gridSizeX,blockSizeX)(Array(p),beta,betaSqScratch)
-    tauSqInvC =: (lambdaSqInv dot betaSqScratch)
+    tauSqInv =: (lambdaSqInv dot betaSqScratch)
     drawTau(1,32,32*Sizeof.FLOAT)(rngStateTau, tauSqInv, tauSqInvShape, xiInv)
   }
 
@@ -205,7 +207,9 @@ object Horseshoe extends App {
 
     XtX.copyTo(Sigma)
     SigmaDiag =: SigmaDiag + lambdaSqInv
-    Sigma.chol =: Sigma.computeCholesky(ws)
+//    Sigma.chol =: Sigma.computeCholesky(ws)
+    cusolverDnSetStream(Waterfall.cusolverDnHandle, stream.cudaStream_t).checkJCusolverStatus()
+    cusolverDnSpotrf(Waterfall.cusolverDnHandle, CUBLAS_FILL_MODE_UPPER, p, Sigma.ptr, p, ws.workspace, ws.workspaceSize, ws.devInfo).checkJCusolverStatus()
     beta =: Random.normal
     beta =: Sigma.chol.inv * beta
     mu =: X.T * z
