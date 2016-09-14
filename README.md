@@ -22,7 +22,7 @@ beta =: R.inv * beta
 beta =: beta + mu
 ```
 
-This is what Waterfall is all about. Written in Scala, Waterfall uses many modern programming features to make GPU-accelerated numerical computing as painless as possible, while providing excellent performance by maintaining a 1:1 mapping to the underlying CUDA calls.
+This is what Waterfall is all about. Written in Scala, Waterfall uses many modern programming features to make GPU-accelerated numerical computing as painless as possible, while providing excellent performance by maintaining a 1:1 mapping to the underlying CUDA calls. It was created after I (@aterenin) came back from MCQMC, a scientific computing conference where I presented my work on GPU-accelerated Gibbs Sampling, and was unable to understand what my own code was doing after not seeing it for a week.
 
 ### Getting Started
 
