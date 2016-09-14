@@ -343,7 +343,7 @@ class GPUMatrixResult(computation: GPUComputation) {
       C.size,
       C.ptr, C.leadingDimension,
       ws.workspace,
-      ws.workspaceSize,
+      ws.workspaceNumBytes,
       ws.devInfo
     ).checkJCusolverStatus()
 

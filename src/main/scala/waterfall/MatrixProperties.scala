@@ -33,22 +33,23 @@ object MatrixProperties {
   case object Left extends Side
   case object Right extends Side
 
-  case class CholeskyWorkspace(workspace: Pointer, workspaceSize: Int, devInfo: Pointer)
+  case class CholeskyWorkspace(workspace: Pointer, workspaceNumBytes: Int, devInfo: Pointer)
   def createCholeskyWorkspace(A: GPUSymmetricMatrix) = {
     // calculate buffer size
     val workspaceSize = Array.ofDim[Int](1)
     cusolverDnSpotrf_bufferSize(Waterfall.cusolverDnHandle,
       A.fillMode.toFillModeId, A.size, A.ptr, A.leadingDimension,
       workspaceSize).checkJCusolverStatus()
+    val workspaceNumBytes = workspaceSize.head * Sizeof.FLOAT
 
     // allocate workspace
     val workspace = new Pointer
-    cudaMalloc(workspace, workspaceSize.head)
+    cudaMalloc(workspace, workspaceNumBytes)
     val devInfo = new Pointer
     cudaMalloc(devInfo, Sizeof.INT)
 
     // return container with necessary pointers
-    CholeskyWorkspace(workspace, workspaceSize.head, devInfo)
+    CholeskyWorkspace(workspace, workspaceNumBytes, devInfo)
   }
   def checkDevInfo(devInfo: Pointer)(implicit stream: GPUStream = Stream.default): Unit = {
     val result = Array.ofDim[Int](1)

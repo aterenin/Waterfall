@@ -207,9 +207,7 @@ object Horseshoe extends App {
 
     XtX.copyTo(Sigma)
     SigmaDiag =: SigmaDiag + lambdaSqInv
-//    Sigma.chol =: Sigma.computeCholesky(ws)
-    cusolverDnSetStream(Waterfall.cusolverDnHandle, stream.cudaStream_t).checkJCusolverStatus()
-    cusolverDnSpotrf(Waterfall.cusolverDnHandle, CUBLAS_FILL_MODE_UPPER, p, Sigma.ptr, p, ws.workspace, ws.workspaceSize, ws.devInfo).checkJCusolverStatus()
+    Sigma.chol =: Sigma.computeCholesky(ws)
     beta =: Random.normal
     beta =: Sigma.chol.inv * beta
     mu =: X.T * z
