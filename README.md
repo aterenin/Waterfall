@@ -28,9 +28,9 @@ This is what Waterfall is all about. Written in Scala, Waterfall uses many moder
 
 Waterfall is currently in alpha testing. To get started, do the following.
 
-  1) Clone the repository, and import the project into your favorite Scala IDE (we recommend IntelliJ IDEA).
-  2) Make a new folder called `lib` inside of your project directory, download `JCuda`, and place its jars and platform-specific files into the `lib` folder.
-  3) Add the `lib` folder to the PATH variable in your editor.
+  1. Clone the repository, and import the project into your favorite Scala IDE (we recommend IntelliJ IDEA).
+  2. Make a new folder called `lib` inside of your project directory, download `JCuda`, and place its jars and platform-specific files into the `lib` folder.
+  3. Add the `lib` folder to the PATH variable in your editor.
   
 Now, you can write your app. Be sure to call `Waterfall.init()` at the beginning of your code.
 
