@@ -7,10 +7,10 @@ A Scala DSL prividing a medium-level API for fast, simple, readable numerical co
 CUDA is lightning fast, but it's a little bit ridiculous when you have to write the following to make a draw from a multivariate normal distribution with mean vector mu and precision matrix Psi.
 
 ```C
-CUSOLVER_CALL(cusolverDnSpotrf(cusolverHandle, CUBLAS_FILL_MODE_UPPER, p, Psi, p, cholWorkspace, cholWorkspaceNumBytes, cusolverDevInfo))
-CURAND_CALL(curandGenerateNormal(curandGenerator, beta, p, 0.0, 1.0))
-CUBLAS_CALL(cublasStrsv(cublasHandle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, p, Psi, p, beta, 1))
-CUBLAS_CALL(cublasSaxpy(cublasHandle, p, ptrOnef, mu, 1, beta, 1))
+CUSOLVER_CALL(cusolverDnSpotrf(cusolverHandle, CUBLAS_FILL_MODE_UPPER, p, Psi, p, cholWorkspace, cholWorkspaceNumBytes, cusolverDevInfo));
+CURAND_CALL(curandGenerateNormal(curandGenerator, beta, p, 0.0, 1.0));
+CUBLAS_CALL(cublasStrsv(cublasHandle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, p, Psi, p, beta, 1));
+CUBLAS_CALL(cublasSaxpy(cublasHandle, p, ptrOnef, mu, 1, beta, 1));
 ```
 
 If you have no idea what the above code is doing, then Waterfall is for you. The exact same computation as above can be written as follows - in this case, with effectively zero performance cost.
