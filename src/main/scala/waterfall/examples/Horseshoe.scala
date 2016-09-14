@@ -205,7 +205,7 @@ object Horseshoe extends App {
   def updateBeta() = {
     implicit val stream = betaStream
 
-    XtX.copyTo(Sigma)
+    XtX copyTo Sigma
     SigmaDiag =: SigmaDiag + lambdaSqInv
     Sigma.chol =: Sigma.computeCholesky(ws)
     beta =: Random.normal

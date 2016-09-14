@@ -41,10 +41,11 @@ class GPUArray(val ptr: Pointer,
   }
 
   def copyToHost: Array[Float] = copyToHost()
-  def copyToHost(numBytesToCopy: Long = numBytes, async: Boolean = false)(implicit stream: GPUStream = Stream.default): Array[Float] = {
-    assert(numElements < Int.MaxValue, "array too big to store on host, length > Int.MaxValue")
-    val result = Array.ofDim[Float](numElements.toInt)
-    cudaMemcpyAsync(Pointer.to(result), ptr, numBytesToCopy, cudaMemcpyDeviceToHost, stream.cudaStream_t).checkJCudaStatus()
+  def copyToHost(numElementsToCopy: Long = numElements, async: Boolean = false)(implicit stream: GPUStream = Stream.default): Array[Float] = {
+    assert(numElementsToCopy < Int.MaxValue, "array too big to store on host, length > Int.MaxValue")
+    assert(numElementsToCopy <= numElements, s"tried to copy $numElementsToCopy elements to host, but only $numElements are stored in GPUArray")
+    val result = Array.ofDim[Float](numElementsToCopy.toInt)
+    cudaMemcpyAsync(Pointer.to(result), ptr, numElementsToCopy * Sizeof.FLOAT.toLong, cudaMemcpyDeviceToHost, stream.cudaStream_t).checkJCudaStatus()
     if(!async) stream.synchronize()
     result
   }
