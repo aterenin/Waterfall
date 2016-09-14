@@ -1,6 +1,6 @@
 # Waterfall
 
-A Scala DSL prividing a mid-level API for fast, simple, readable numerical computing on GPUs.
+A Scala DSL prividing a medium-level API for fast, simple, readable numerical computing on GPUs.
 
 ### Motivation
 
