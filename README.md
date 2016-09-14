@@ -64,14 +64,22 @@ Z =: X * Y
 
 Internally, the operation `X * Y` causes Waterfall to create a `GPUMatrixResult` class. Then, the operation `Z =: ...` causes the computation to be executed and stored in `Z`. Waterfall will check `X` and `Y` for compatibility and will try its best to provide meaningful messages if an exception is encountered.
 
+Result classes themselves cannot be multiplied, because this would require executing more than one computation. Thus, the following is invalid.
+
+```Scala
+W =: X * Y * Z // won't compile
+```
+
+This makes Waterfall a lower-level framework than typical numerical computing languages such as *R*. This has its downsides: large formulae must be written as sequences of smaller ones. It also has its upsides: it makes clearly obvious how everything is being calculated, and what buffer space is needed along the way, simplifying optimization.
+
 Once a matrix is created, it can be declared symmetric or triangular. Calling `X.declareSymmetric` will return a `SymmetricMatrix`, for which multiplication is strictly faster than for general matrices. This may also open up new computations: symmetric matrices can be decomposed into Cholesky factors.
 
-Waterfall evaluates matrix transposition *lazily*: calling `X.T` returns a GPUMatrix that can be used immediately for any given purpose, and does not perform any computations on the GPU. Let's illustrate this.
+Waterfall evaluates matrix transposition *lazily*: calling `X.T` returns a `GPUMatrix` that can be used immediately for any given purpose, and does not perform any computations on the GPU. Let's illustrate this.
 
 ```Scala
 val XT = X.T
 ```
-No evaluation has taken place on the GPU - instead, XT contains a `GPUMatrix` object that internally knows that it has been transposed, which it will use the next time it needs to, such as when it is multiplied by another matrix. This immediately yields better performance compared to other languages such as *R* where transposes are evaluated eagerly.
+No evaluation has taken place on the GPU - instead, `XT` contains a `GPUMatrix` object that internally knows that it has been transposed, which it will use the next time it needs to, such as when it is multiplied by another matrix. This immediately yields better performance compared to other languages such as *R* where transposes are evaluated eagerly.
 
 Matrices can have constants lazily attached to them via the `GPUMatrix.withConstant` method. Constants can be consumed in some computations, based on whatever is supported in the underlying CUDA routines.
 
@@ -84,17 +92,9 @@ R =: X.computeCholesky(workspace)
 w = X.inv * v
 ``` 
 
-The above will compute a Cholesky decomposition of X and store it in R. The `workspace` class contains the `buffer` and `device info` parameters needed to perform a Cholesky factorization (just as in CUDA). Once `X` can be inverted, calling `X.inv` will return an `InverseSymmetricMatrix` which can be multiplied by matrices and vectors. Multiplying an inverse matrix by a matrix or vector will create a computation in which the equivalent linear system is solved - strictly faster and more numerically stable than calculating the inverse directly. Inverse matrices cannot be added: if this is truly necessary, the user should multiply the `InverseMatrix` by the identity to force evaluation.
+The above will compute a Cholesky decomposition of `X` and store it in `R`. The `workspace` class contains the `buffer` and `devinfo` parameters needed by CUDA to perform a Cholesky factorization. Once `X` can be inverted, calling `X.inv` will return an `InverseSymmetricMatrix` which can be multiplied by matrices and vectors. Multiplying an inverse matrix by a matrix or vector will create a computation in which the equivalent linear system is solved - strictly faster and more numerically stable than calculating the inverse directly. Inverse matrices cannot be added: if this is truly necessary, the user should multiply the `InverseMatrix` by the identity to force evaluation.
 
 Every single computation in Waterfall corresponds directly to a CUDA routine. For example, the computation `Z =: X * Y` where `X` is symmetric corresponds to `cublasSsymm`, and `R =: X.computeCholesky(workspace)` corresponds to `cusolverSpotrf`.
-
-Result classes themselves cannot be multiplied, because this would require executing more than one computation. Thus, the following is invalid.
-
-```Scala
-W =: X * Y * Z // won't compile
-```
-
-This makes Waterfall a lower-level framework than typical numerical computing languages such as *R*. This has its downsides: large formulae must be written as sequences of smaller ones. It also has its upsides: it makes clearly obvious how everything is being calculated, and what buffer space is needed along the way, simplifying optimization.
 
 Waterfall includes a `Random` object capable of generating arrays of independent Gaussians and independent Uniforms. Its use is analogous to the rest of the package. 
 
