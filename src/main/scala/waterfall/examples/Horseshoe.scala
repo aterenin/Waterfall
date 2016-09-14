@@ -42,7 +42,7 @@ object Horseshoe extends App {
     X =: Random.normal
     mu =: X * beta
     z =: Random.uniform
-    drawY(blockSizeX, gridSizeX)(Array(n),z,mu,y)
+    drawY(gridSizeX, blockSizeX)(Array(n),z,mu,y)
 
     // cleanup
     Stream.default.synchronize()

@@ -38,7 +38,7 @@ class CustomKernel(module: CUmodule, function: CUfunction,
   def apply(gridX: Int, gridY: Int, gridZ: Int, blockX: Int, blockY: Int, blockZ: Int, shareMemBytes: Int)(args: Any*) = {
     // this allows us to use syntax such as customKernel(256,4)(a1,a2,a3) for launching kernels, mimicking CUDA C
     withLaunchConfiguration(gridX, gridY, gridZ, blockX, blockY, blockZ)
-      .withSharedMemBytes(0)
+      .withSharedMemBytes(shareMemBytes)
       .withArgs(args:_*)
       .execute()
   }
