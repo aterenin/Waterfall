@@ -1,6 +1,6 @@
 # Waterfall
 
-A Scala DSL for fast, simple, readable numerical computing on GPUs.
+A Scala DSL prividing a mid-level API for fast, simple, readable numerical computing on GPUs.
 
 ### Motivation
 
@@ -13,7 +13,7 @@ CUBLAS_CALL(cublasStrsv(cublasHandle, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLA
 CUBLAS_CALL(cublasSaxpy(cublasHandle, p, ptrOnef, mu, 1, beta, 1))
 ```
 
-If you have no idea what the above code is doing, then Waterfall is for you. The exact same computation as above can be written as follows -- in this case, with effectively zero performance cost.
+If you have no idea what the above code is doing, then Waterfall is for you. The exact same computation as above can be written as follows - in this case, with effectively zero performance cost.
 
 ```Scala
 R =: Psi.computeCholesky(workspace)
@@ -36,9 +36,9 @@ Now, you can write your app. Be sure to call `Waterfall.init()` at the beginning
 
 ### Design, Philosophy, and Usage
 
-Waterfall is a Scala DSL for numerical computing on GPUs. It is designed to balance user friendliness with performance: its syntax tries best to resemble mathematical formulae, yet every single operation corresponds exactly to a low-level CUDA call for maximum performance. It tries best to guide the programmer toward doing the right thing: for instance, it is equivalent and much faster to solve a linear system than to compute and multiply an inverse matrix -- Waterfall intentionally makes the former easier to do than the latter.
+Waterfall is a Scala DSL for numerical computing on GPUs. It is designed to balance user friendliness with performance: its syntax tries best to resemble mathematical formulae, yet every single operation corresponds exactly to a low-level CUDA call for maximum performance. It tries best to guide the programmer toward doing the right thing: for instance, it is equivalent and much faster to solve a linear system than to compute and multiply an inverse matrix - Waterfall intentionally makes the former easier to do than the latter.
 
-The basic classes in Waterfall are `GPUMatrix`, `GPUVector`, and `GPUConstant`. All are backed by column-major floating-point arrays on the GPU. The fundamental notion in Waterfall is that of a *Computation* -- a CUDA routine that takes an input, and can be stored in some output. A computation is created by performing operations on classes. It is not evaluated immediately, and is executed through the assignment operator `=:`.
+The basic classes in Waterfall are `GPUMatrix`, `GPUVector`, and `GPUConstant`. All are backed by column-major floating-point arrays on the GPU. The fundamental notion in Waterfall is that of a *computation* - a CUDA routine that takes an input, and can be stored in some output. A computation is created by performing operations on classes. It is not evaluated immediately, and is executed through the assignment operator `=:`.
 
 This can be illustrated by example. First, let's create two input matrices `X` and `Y`, and an output matrix `Z`.
 
@@ -69,7 +69,9 @@ Waterfall evaluates matrix transposition *lazily*: calling `X.T` returns a GPUMa
 ```Scala
 val XT = X.T
 ```
-No evaluation has taken place on the GPU -- instead, XT contains a `GPUMatrix` object that internally knows that it has been transposed, which it will use the next time it needs to, such as when it is multiplied by another matrix. This immediately yields better performance compared to other languages such as *R* where transposes are evaluated eagerly.
+No evaluation has taken place on the GPU - instead, XT contains a `GPUMatrix` object that internally knows that it has been transposed, which it will use the next time it needs to, such as when it is multiplied by another matrix. This immediately yields better performance compared to other languages such as *R* where transposes are evaluated eagerly.
+
+Matrices can have constants lazily attached to them via the `GPUMatrix.withConstant` method. Constants can be consumed in some computations, based on whatever is supported in the underlying CUDA routines.
 
 Matrix inversion is also performed lazily. Currently, symmetric and triangular matrix inversion are supported. Triangular matrices can be inverted immediately, symmetric matrices must have an attached Cholesky decomposition computed. Let's see an example: suppose that `X` is a `SymmetricMatrix`, and `w` and `v` are vectors.
 
@@ -80,9 +82,17 @@ R =: X.computeCholesky(workspace)
 w = X.inv * v
 ``` 
 
-The above will compute a Cholesky decomposition of X and store it in R. The `workspace` class contains the `buffer` and `device info` parameters needed to perform a Cholesky factorization (just as in CUDA). Once `X` can be inverted, calling `X.inv` will return an `InverseSymmetricMatrix` which can be multiplied by matrices and vectors. Multiplying an inverse matrix by a matrix or vector will create a computation in which the equivalent linear system is solved -- strictly faster and more numerically stable than calculating the inverse directly. Inverse matrices cannot be added: if this is truly necessary, the user should multiply the `InverseMatrix` by the identity to force evaluation.
+The above will compute a Cholesky decomposition of X and store it in R. The `workspace` class contains the `buffer` and `device info` parameters needed to perform a Cholesky factorization (just as in CUDA). Once `X` can be inverted, calling `X.inv` will return an `InverseSymmetricMatrix` which can be multiplied by matrices and vectors. Multiplying an inverse matrix by a matrix or vector will create a computation in which the equivalent linear system is solved - strictly faster and more numerically stable than calculating the inverse directly. Inverse matrices cannot be added: if this is truly necessary, the user should multiply the `InverseMatrix` by the identity to force evaluation.
 
 Every single computation in Waterfall corresponds directly to a CUDA routine. For example, the computation `Z =: X * Y` where `X` is symmetric corresponds to `cublasSsymm`, and `R =: X.computeCholesky(workspace)` corresponds to `cusolverSpotrf`.
+
+Result classes themselves cannot be multiplied, because this would require executing more than one computation. Thus, the following is invalid.
+
+```Scala
+W =: X * Y * Z // won't compile
+```
+
+This makes Waterfall a lower-level framework than typical numerical computing languages such as *R*. This has its downsides: large formulae must be written as sequences of smaller ones. It also has its upsides: it makes clearly obvious how everything is being calculated, and what buffer space is needed along the way, simplifying optimization.
 
 Waterfall includes a `Random` object capable of generating arrays of independent Gaussians and independent Uniforms. Its use is analogous to the rest of the package. 
 
@@ -112,6 +122,14 @@ customKernel(gridDimX, blockDimX)(arg1, arg2, arg3)
 
 The above will load the kernel `custom_kernel` from the file `kernel.ptx`. Then, it will launch the kernel with grid and block dimensions `(gridDimX, blockDimX)` and arguments `(arg1, arg2, arg3)`. The API supports the same launch configuration as CUDA, as well as shared memory parameters, and arbitrary arguments. All Waterfall classes such as `GPUMatrix` and `GPUVector` can be passed as arguments immediately and will internally be converted as needed to yield expected behavior.
 
-Waterfall exposes its internals. All of its classes expose the underlying `Pointer` objects used by JCuda, which can be used for any purpose necessary.
+Waterfall exposes its internals. All of its classes expose the underlying `Pointer` classes used by JCuda, which can be used for any purpose necessary.
 
-Waterfall is under active development, and strives to be fully unit tested -- coverage is currently close but not quite fully complete. If you have found a bug, please submit an issue. We hope that this DSL is useful, and would love your feedback.
+Waterfall *never* allocates memory internally. All memory is allocated by the user when creating matrices and vectors - this simplifies optimization. Some operations may perform a memory copy, but most will not. Some operations support in-place mode - operations that don't will throw an exception.
+
+Waterfall classes are *almost* immutable. They can mutate only through the assignment operator `=:`, which might change the transpose flag so that it reflects reality, attach matrix decompositions, or other minor needed changes. The underlying `Pointer` classes attached cannot change.
+
+For maximum performance on GPUs, at the moment Waterfall operates exclusively in floating point precision.
+
+Waterfall checks all of its operations for compatibiliy, and also checks all of the return values given by CUDA routines. This simplifies debugging.
+
+Waterfall is under active development, and strives to be fully unit tested - coverage is currently close but not quite fully complete. If you have found a bug, please submit an issue. We hope that this DSL is useful, and would love your feedback.
