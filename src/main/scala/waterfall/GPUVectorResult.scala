@@ -114,7 +114,7 @@ class GPUVectorResult(computation: GPUComputation) {
     // perform single-precision general matrix-vector multiplication
     cublasSgemv(Waterfall.cublasHandle,
       A.isTranspose.toTransposeOpId,
-      A.numRows, A.numCols,
+      if(!A.isTranspose) A.numRows else A.numCols, if(!A.isTranspose) A.numCols else A.numRows,
       alpha.ptr,
       A.ptr, A.leadingDimension,
       x.ptr, x.stride,
