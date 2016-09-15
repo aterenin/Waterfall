@@ -61,7 +61,7 @@ class CustomKernel(module: CUmodule, function: CUfunction,
       case b: Buffer => Pointer.toBuffer(b)
       case e => throw new Exception(s"unsupported: cannot create pointer for kernel argument $e")
     }
-    updated(args = Some(Pointer.to(argPointerSeq:_*)))
+    updated(args = if(argPointerSeq.nonEmpty) Some(Pointer.to(argPointerSeq:_*)) else None)
   }
 
   def withLaunchConfiguration(gridX: Int, blockX: Int): CustomKernel = withLaunchConfiguration(gridX,1,1,blockX,1,1)
