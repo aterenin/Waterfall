@@ -134,4 +134,4 @@ For maximum performance on GPUs, at the moment Waterfall operates exclusively in
 
 Waterfall checks all of its operations for compatibiliy, and also checks all of the return values given by CUDA routines. This simplifies debugging.
 
-Waterfall is under active development, and strives to be fully unit tested - coverage is currently close but not quite fully complete. If you have found a bug, please submit an issue. We hope that this DSL is useful, and would love your feedback.
+Waterfall is under active development, and strives to be fully unit tested - coverage is currently close but not quite fully complete. If you have found a bug, please submit an issue. We hope that this DSL is useful, and would love your feedback - please feel free to get in touch by email at `{my-github-username}@ucsc.edu`.
