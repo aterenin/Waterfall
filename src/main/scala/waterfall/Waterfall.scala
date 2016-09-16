@@ -18,9 +18,10 @@
 package waterfall
 
 import jcuda.runtime.JCuda.cudaMemGetInfo
-import jcuda.jcublas.JCublas2.{cublasCreate, cublasSetPointerMode}
+import jcuda.jcublas.JCublas2.{cublasCreate, cublasSetPointerMode, cublasSetAtomicsMode}
 import jcuda.jcublas.cublasHandle
 import jcuda.jcublas.cublasPointerMode.CUBLAS_POINTER_MODE_DEVICE
+import jcuda.jcublas.cublasAtomicsMode.CUBLAS_ATOMICS_ALLOWED
 import jcuda.jcurand.JCurand.curandCreateGenerator
 import jcuda.jcurand.curandGenerator
 import jcuda.jcurand.curandRngType.CURAND_RNG_PSEUDO_PHILOX4_32_10
@@ -49,6 +50,7 @@ object Waterfall {
 
     cublasCreate(cublasHandle).checkJCublasStatus()
     cublasSetPointerMode(cublasHandle, CUBLAS_POINTER_MODE_DEVICE).checkJCublasStatus()
+    cublasSetAtomicsMode(cublasHandle, CUBLAS_ATOMICS_ALLOWED).checkJCublasStatus()
 
     cusolverDnCreate(cusolverDnHandle).checkJCusolverStatus()
 

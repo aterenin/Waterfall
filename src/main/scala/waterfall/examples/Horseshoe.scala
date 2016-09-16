@@ -1,9 +1,6 @@
 package waterfall.examples
 
 import java.io.{BufferedWriter, FileOutputStream, OutputStreamWriter}
-
-import jcuda.jcublas.cublasFillMode._
-import jcuda.jcusolver.JCusolverDn._
 import jcuda.runtime.JCuda._
 import jcuda.runtime.cudaMemcpyKind._
 import jcuda.{Pointer, Sizeof}
@@ -11,8 +8,10 @@ import waterfall.Implicits.DebugImplicits
 import waterfall.Random.PhiloxState
 import waterfall.Stream.GPUStream
 import waterfall._
-
+import waterfall.MatrixProperties.checkDevInfo
 import scala.collection.mutable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Horseshoe extends App {
   val (nMC, n, p, thinning) = args match {
@@ -47,6 +46,7 @@ object Horseshoe extends App {
     // cleanup
     Stream.default.synchronize()
     cudaMemcpy(beta.ptr, Pointer.to(Array.fill(p)(0.0f)), p*Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
+    cudaMemcpy(z.ptr, Pointer.to(Array.fill(n)(0.0f)), n*Sizeof.FLOAT, cudaMemcpyHostToDevice).checkJCudaStatus()
     cudaFree(mu.ptr).checkJCudaStatus()
 
     (y,X)
@@ -128,7 +128,7 @@ object Horseshoe extends App {
     updateTau()
     syncAllStreams()
 
-    if (i % math.max(nMC / 100, 1) == 0) println(s"total samples: $i")
+    if (i % math.max(nMC / 1000, 1) == 0) println(s"total samples: $i")
   }
 
   println(s"finished, total run time in minutes: ${(System.nanoTime() - time).toDouble / 60000000000.0}")
@@ -207,7 +207,7 @@ object Horseshoe extends App {
 
     XtX copyTo Sigma
     SigmaDiag =: SigmaDiag + lambdaSqInv
-    Sigma.chol =: Sigma.computeCholesky(ws)
+    Sigma.chol =: Sigma.computeCholesky(ws); Future { checkDevInfo(ws.devInfo) } onFailure { case t => throw t }
     beta =: Random.normal
     beta =: Sigma.chol.inv * beta
     mu =: X.T * z
