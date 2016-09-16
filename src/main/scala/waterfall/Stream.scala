@@ -27,8 +27,8 @@ object Stream {
 
   def create = {
     val cudaStream_t = new cudaStream_t
-    cudaStreamCreate(cudaStream_t).checkJCudaStatus()
     val CUstream = new CUstream(cudaStream_t)
+    cudaStreamCreate(cudaStream_t).checkJCudaStatus()
     GPUStream(cudaStream_t, CUstream)
   }
 
