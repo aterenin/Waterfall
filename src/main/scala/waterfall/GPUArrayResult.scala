@@ -29,6 +29,12 @@ import waterfall.Stream.GPUStream
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUArrayResult(computation: GPUComputation) {
+  /**
+    * The assignment operator: executes the GPUComputation in the GPUArrayResult and stored it in the GPUArray passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param a the GPUArray in which output will be stored
+    */
   def =:(a: GPUArray): GPUArray = computation match {
     case GPUGenerateNormal(mu: Float, sigma: Float) => executeGenerateNormal(a, mu, sigma)
     case GPUGenerateUniform => executeGenerateUniform(a)

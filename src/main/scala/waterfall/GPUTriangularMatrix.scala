@@ -20,6 +20,17 @@ package waterfall
 import jcuda.Pointer
 import MatrixProperties._
 
+/**
+  * A GPU triangular matrix
+  *
+  * @author Alexander Terenin
+  *
+  * @param ptr JCuda pointer to the GPU's array
+  * @param size number of rows and columns
+  * @param fillMode whether the matrix has upper or lower fill mode
+  * @param isTranspose whether or not the matrix is transposed
+  * @param const the optional constant this vector is multiplied by, default none
+  */
 class GPUTriangularMatrix(ptr: Pointer,
                           val size: Int,
                           val fillMode: FillMode,

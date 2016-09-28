@@ -24,7 +24,7 @@ import Implicits.DebugImplicits
 import MatrixProperties.{FillMode, Lower}
 
 /**
-  * A GPU matrix
+  * A GPU inverse matrix
   *
   * @author Alexander Terenin
   *

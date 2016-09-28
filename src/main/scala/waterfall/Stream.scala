@@ -22,6 +22,11 @@ import jcuda.runtime.cudaStream_t
 import jcuda.runtime.JCuda.{cudaStreamCreate, cudaStreamSynchronize}
 import Implicits.DebugImplicits
 
+/**
+  * An object containing methods for creating GPU streams
+  *
+  * @author Alexander Terenin
+  */
 object Stream {
   val default = create
 

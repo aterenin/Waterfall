@@ -31,6 +31,12 @@ import waterfall.Stream.GPUStream
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUMatrixResult(computation: GPUComputation) {
+  /**
+    * The assignment operator: executes the GPUComputation in the GPUMatrixResult and stored it in the GPUMatrix passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param C the GPUMatrix in which output will be stored
+    */
   def =:(C: GPUMatrix): GPUMatrix = computation match {
     case GPUGeneralAddMatrix(a,b) => executeSgeam(a,b,C)
     case GPUGeneralMatrixMatrix(a,b) => executeSgemm(a,b,C)
@@ -54,6 +60,13 @@ class GPUMatrixResult(computation: GPUComputation) {
     case _ => throw new Exception("wrong matrix operation in =:")
   }
 
+  /**
+    * The in-place addition operator: executes the GPUComputation in the GPUMatrixResult and adds it to the GPUMatrix passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param C the GPUMatrix to which output will be added
+    * @return
+    */
   def +=:(C: GPUMatrix): GPUMatrix  = computation match {
     case GPUGeneralMatrixMatrix(a,b) if !C.isTranspose => executeSgemm(a,b,C, inplace = true)
     case GPUSymmetricMatrixMatrix(a,b) if !b.isTranspose && !C.isTranspose => executeSsymm(a,b,C, inplace = true)

@@ -24,6 +24,11 @@ import Implicits.{DebugImplicits, FillModeImplicits}
 import jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost
 import waterfall.Stream.GPUStream
 
+/**
+  * An object containing various matrix properties
+  *
+  * @author Alexander Terenin
+  */
 object MatrixProperties {
   sealed trait FillMode
   case object Upper extends FillMode

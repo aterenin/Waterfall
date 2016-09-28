@@ -27,6 +27,11 @@ import jcuda.jcublas.cublasSideMode.{stringFor => _, CUBLAS_SIDE_LEFT, CUBLAS_SI
 import jcuda.jcublas.cublasDiagType.{stringFor => _, CUBLAS_DIAG_NON_UNIT, CUBLAS_DIAG_UNIT}
 import MatrixProperties.{FillMode, Lower, Upper, Side, Left, Right}
 
+/**
+  * Various types of implicits used in Waterfall
+  *
+  * @author Alexander Terenin
+  */
 object Implicits {
 
 

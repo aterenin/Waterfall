@@ -29,7 +29,12 @@ import waterfall.Stream.GPUStream
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUConstantResult(computation: GPUComputation) {
-  def :=>(c: GPUConstant): GPUConstant = execute(c)
+  /**
+    * The assignment operator: executes the GPUComputation in the GPUConstantResult and stored it in the GPUConstant passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param c the GPUConstant in which output will be stored
+    */
   def =:(c: GPUConstant): GPUConstant = execute(c)
 
   private def execute(c: GPUConstant) = computation match {

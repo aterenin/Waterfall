@@ -21,6 +21,11 @@ import jcuda.Pointer
 import jcuda.runtime.JCuda.cudaMalloc
 import jcuda.jcurand.JCurand.curandSetPseudoRandomGeneratorSeed
 
+/**
+  * An object that contains methods for generating random numbers
+  *
+  * @author Alexander Terenin
+  */
 object Random {
   def normal = new GPUArrayResult(GPUGenerateNormal(0.0f,1.0f))
   def normal(mu: Float, sigmasq: Float) = new GPUArrayResult(GPUGenerateNormal(mu, math.sqrt(sigmasq.toDouble).toFloat))

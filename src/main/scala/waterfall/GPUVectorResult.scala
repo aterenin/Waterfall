@@ -29,6 +29,12 @@ import waterfall.Stream.GPUStream
   * @param computation the computation containing the needed input that will yield selected result
   */
 class GPUVectorResult(computation: GPUComputation) {
+  /**
+    * The assignment operator: executes the GPUComputation in the GPUVectorResult and stored it in the GPUVector passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param y the GPUVector in which output will be stored
+    */
   def =:(y: GPUVector): GPUVector = computation match {
     case GPUAlphaXPlusY(x1: GPUVector, x2: GPUVector) => executeSaxpy(x1, x2, y)
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y)
@@ -44,6 +50,13 @@ class GPUVectorResult(computation: GPUComputation) {
     case _ => throw new Exception("wrong vector operation in =:")
   }
 
+  /**
+    * The in-place addition operator: executes the GPUComputation in the GPUVectorResult and adds it to the GPUVector passed in as argument
+    *
+    * @author Alexander Terenin
+    * @param y the GPUVector to which output will be added
+    * @return
+    */
   def +=:(y: GPUVector): GPUVector  = computation match {
     case GPUGeneralMatrixVector(a: GPUMatrix, x: GPUVector) => executeSgemv(a, x, y, inplace = true)
     case GPULeftGeneralMatrixVector(xT: GPUVector, a: GPUMatrix) => executeSgemv(a.T, xT, y, inplace = true, transposeY = true)  // Ax=y is equivalent to y^T = x^T A^T

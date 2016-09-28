@@ -20,6 +20,16 @@ package waterfall
 import jcuda.Pointer
 import MatrixProperties.{CholeskyWorkspace, FillMode}
 
+/**
+  * A GPU symmetric matrix
+  *
+  * @author Alexander Terenin
+  *
+  * @param ptr JCuda pointer to the GPU's array
+  * @param size number of rows and columns
+  * @param const the optional constant this vector is multiplied by, default none
+  * @param iCholesky the optional attached Cholesky decomposition, default none
+  */
 class GPUSymmetricMatrix(ptr: Pointer,
                          val size: Int,
                          val fillMode: FillMode,

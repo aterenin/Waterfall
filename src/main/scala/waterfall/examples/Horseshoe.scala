@@ -1,3 +1,19 @@
+/**
+  *  Copyright 2016 Alexander Terenin
+  *
+  *  Licensed under the Apache License, Version 2.0 (the "License")
+  *  you may not use this file except in compliance with the License.
+  *  You may obtain a copy of the License at
+  *
+  *  http://www.apache.org/licenses/LICENSE-2.0
+  *
+  *  Unless required by applicable law or agreed to in writing, software
+  *  distributed under the License is distributed on an "AS IS" BASIS,
+  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  *  See the License for the specific language governing permissions and
+  *  limitations under the License.
+  * /
+  */
 package waterfall.examples
 
 import java.io.{BufferedWriter, FileOutputStream, OutputStreamWriter}
@@ -13,6 +29,11 @@ import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
+/**
+  * The Horseshoe Probit Gibbs sampler (floating point precision version). See: http://arxiv.org/abs/1608.04329
+  *
+  * @author Alexander Terenin
+  */
 object Horseshoe extends App {
   val (nMC, n, p, thinning) = args match {
     case Array(a1) => (a1.toInt, 1000, 100, 1)
@@ -20,7 +41,6 @@ object Horseshoe extends App {
     case Array(a1, a2, a3, a4) => (a1.toInt, a2.toInt, a3.toInt, a4.toInt)
     case Array() => (100, 1000, 100, 1)
   }
-  val nonZeroBeta = Array(1.3f,4.0f,-1.0f,1.6f,5.0f,-2.0f)
   val numStoredVariables = math.min(87, p)
   val seed = 1
 
@@ -29,6 +49,9 @@ object Horseshoe extends App {
   Waterfall.printMemInfo()
 
   def genData(beta: GPUVector, z: GPUVector) = {
+    // generates a synthetic data set to be used with the model
+    val nonZeroBeta = Array(1.3f,4.0f,-1.0f,1.6f,5.0f,-2.0f)
+
     val X = GPUMatrix.create(n,p)
     val y = new Pointer
     cudaMalloc(y, n.toLong * Sizeof.INT.toLong).checkJCudaStatus()
@@ -51,6 +74,9 @@ object Horseshoe extends App {
 
     (y,X)
   }
+
+
+
 
   // create variables
   val z = GPUVector.createFromArray(Array.fill(n)(0.0f))
@@ -106,6 +132,9 @@ object Horseshoe extends App {
   Waterfall.printMemInfo()
   val time = System.nanoTime()
 
+
+
+
   // run MCMC
   for(i <- 0 until nMC) {
     if(i % thinning == 0) {
@@ -133,22 +162,29 @@ object Horseshoe extends App {
 
   println(s"finished, total run time in minutes: ${(System.nanoTime() - time).toDouble / 60000000000.0}")
 
+  writeOutput()
+
+
+
+
+  // utility functions to transform output to the scale we want to analyze in
   val fInvSqrt = { v: Float => math.sqrt(1.0 / v.toDouble).toFloat }
   val fInv = { v: Float => 1.0f / v }
   val fIdentity = { v: Float => v }
-  // write output
-  for {
-    ((out, name), f) <- Array(betaOut, zOut, lambdaOut, nuOut, tauOut, xiOut)
-      .zip(Array("beta", "z", "lambda", "nu", "tau", "xi"))
-      .zip(Array(fIdentity, fIdentity, fInvSqrt, fInv, fInvSqrt, fInv))
-  } {
-    val fileName = s"output/out-GPU-$name.csv"
-    val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName)))
-    println(s"writing output of length ${out.size} to $fileName")
-    out.foreach { outRow => writer.write(s"${outRow.map(f).mkString(",")}\n") }
-    writer.close()
-  }
 
+  def writeOutput() {
+    for {
+      ((out, name), f) <- Array(betaOut, zOut, lambdaOut, nuOut, tauOut, xiOut)
+        .zip(Array("beta", "z", "lambda", "nu", "tau", "xi"))
+        .zip(Array(fIdentity, fIdentity, fInvSqrt, fInv, fInvSqrt, fInv))
+    } {
+      val fileName = s"output/out-GPU-$name.csv"
+      val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName)))
+      println(s"writing output of length ${out.size} to $fileName")
+      out.foreach { outRow => writer.write(s"${outRow.map(f).mkString(",")}\n") }
+      writer.close()
+    }
+  }
 
   def syncAllStreams() = {
     betaStream.synchronize()
@@ -168,6 +204,9 @@ object Horseshoe extends App {
     val gridSizeX = math.ceil(size.toDouble / blockSizeX.toDouble).toInt
     (gridSizeX, blockSizeX)
   }
+
+
+
 
 
   def updateLambda() = {

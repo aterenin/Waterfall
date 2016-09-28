@@ -25,6 +25,18 @@ import Implicits.DebugImplicits
 import waterfall.Random.GPURNGState
 import waterfall.Stream.GPUStream
 
+
+/**
+  * A class that contains a compiled CUDA kernel that can be launched via syntax such as customKernel(gridDim, blockDim)(arg1, arg2, arg3), mimicking CUDA C
+  *
+  * @author Alexander Terenin
+  * @param module the CUmodule containing the custom kernel
+  * @param function the CUfunction containing the custom kernel
+  * @param args a pointer that points to the kernel arguments
+  * @param launchConfiguration the launch configuration in (gridDimX, gridDimY, gridDimZ, blockDimX, blockDimY, blockDimZ)
+  * @param sharedMemBytes the number of shared memory bytes provided to the kernel
+  * @param extra a pointer that points to the extra parameters
+  */
 class CustomKernel(module: CUmodule, function: CUfunction,
                    args: Option[Pointer] = None,
                    launchConfiguration: Option[(Int,Int,Int,Int,Int,Int)] = None,
@@ -85,6 +97,13 @@ class CustomKernel(module: CUmodule, function: CUfunction,
                       extra: Option[Pointer] = extra) = new CustomKernel(module, function, args, launchConfiguration, sharedMemBytes, extra)
 }
 
+
+/**
+  * A class that loads compiled CUDA code so that we can extract CUDA kernels from it
+  *
+  * @author Alexander Terenin
+  * @param fileName the name of the file to load
+  */
 case class CustomKernelFile(fileName: String) {
   private val module = new CUmodule()
   cuModuleLoad(module, fileName).checkJCudaStatus()
