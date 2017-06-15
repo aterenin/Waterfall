@@ -2,6 +2,11 @@
 
 A Scala DSL prividing a medium-level API for fast, simple, readable numerical computing on GPUs.
 
+### Status
+
+Waterfall is no longer under active development, as I have moved to using TensorFlow and other graph based packages for GPU computing.
+Though the 1:1 mapping between Waterfall and CUDA library calls makes for excellent performance, the ease of use and additional optimization opportunities present in graph-based packages make them a better solution to most use cases.
+
 ### Motivation
 
 CUDA is lightning fast, but it's a little bit ridiculous when you have to write the following to make a draw from a multivariate normal distribution with mean vector mu and precision matrix Psi.
@@ -133,9 +138,3 @@ Waterfall classes are *almost* immutable. They can mutate only through the assig
 For maximum performance on GPUs, at the moment Waterfall operates exclusively in floating point precision.
 
 Waterfall checks all of its operations for compatibiliy, and also checks all of the return values given by CUDA routines. This simplifies debugging.
-
-### Development
-
-Waterfall's current release is 0.01-alpha. This is a very early initial release suited for testing and further development. The API is not yet finalized and may change as needed.
-
-Waterfall is under active development, and strives to be fully unit tested - coverage is currently close but not quite fully complete. If you have found a bug, please submit an issue. We hope that this DSL is useful, and would love your feedback - please feel free to get in touch by email at `{my-github-username}@ucsc.edu`.
